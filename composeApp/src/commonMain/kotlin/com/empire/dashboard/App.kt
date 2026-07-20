@@ -10,17 +10,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.empire.dashboard.data.EmpireApi
 import com.empire.dashboard.data.EmpireRepository
 import com.empire.dashboard.data.EmpireState
 import com.empire.dashboard.data.EmpireStatus
-import com.empire.dashboard.ui.screens.DashboardScreen
-import com.empire.dashboard.ui.screens.NichesScreen
-import com.empire.dashboard.ui.screens.RunHistoryScreen
+import com.empire.dashboard.ui.screens.*
 import com.empire.dashboard.ui.theme.EmpireAccent
 import com.empire.dashboard.ui.theme.EmpireGold
 import com.empire.dashboard.ui.theme.EmpireSurface
 import com.empire.dashboard.ui.theme.EmpireTheme
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.launch
 
 @Composable
 fun App(serverUrl: String = "http://localhost:8765") {
@@ -28,6 +28,8 @@ fun App(serverUrl: String = "http://localhost:8765") {
     val state by repo.statusStream(5000L)
         .catch { emit(EmpireState.Error(it.message ?: "Stream error")) }
         .collectAsState(initial = EmpireState.Loading)
+    
+    val api = remember { EmpireApi(serverUrl) }
 
     EmpireTheme {
         Surface(
@@ -37,16 +39,26 @@ fun App(serverUrl: String = "http://localhost:8765") {
             when (val s = state) {
                 is EmpireState.Loading -> LoadingScreen()
                 is EmpireState.Error   -> ErrorScreen(s.message)
-                is EmpireState.Success -> EmpireNavHost(s.status)
+                is EmpireState.Success -> EmpireNavHost(s.status, serverUrl = serverUrl, api = api)
             }
         }
     }
 }
 
 @Composable
-private fun EmpireNavHost(status: EmpireStatus) {
+private fun EmpireNavHost(status: EmpireStatus, serverUrl: String, api: EmpireApi) {
+    val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Dashboard", "Niches", "History")
+    var navigateTo by remember { mutableStateOf<String?>(null) }
+    
+    val tabs = listOf("Dashboard", "Progress", "Customers", "Revenue", "Niches", "History")
+
+    LaunchedEffect(navigateTo) {
+        navigateTo?.let { dest ->
+            selectedTab = tabs.indexOf(dest)
+            navigateTo = null
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -55,7 +67,7 @@ private fun EmpireNavHost(status: EmpireStatus) {
                     NavigationBarItem(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        label = { Text(label, fontSize = 11.sp) },
+                        label = { Text(label, fontSize = 10.sp) },
                         icon = {},
                         colors = NavigationBarItemDefaults.colors(
                             selectedTextColor = EmpireGold,
@@ -70,9 +82,20 @@ private fun EmpireNavHost(status: EmpireStatus) {
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (selectedTab) {
-                0 -> DashboardScreen(status)
-                1 -> NichesScreen(status.topNiches)
-                2 -> RunHistoryScreen(status.recentPipelines, status.recentBundles)
+                0 -> DashboardScreen(
+                    status = status,
+                    onStartPipeline = {
+                        scope.launch {
+                            api.startPipeline()
+                        }
+                    },
+                    onNavigate = { navigateTo = it }
+                )
+                1 -> ProgressScreen(apiUrl = serverUrl)
+                2 -> CustomersScreen(apiUrl = serverUrl)
+                3 -> RevenueScreen(apiUrl = serverUrl)
+                4 -> NichesScreen(status.topNiches)
+                5 -> RunHistoryScreen(status.recentPipelines, status.recentBundles)
             }
         }
     }

@@ -17,7 +17,7 @@ import com.empire.dashboard.ui.theme.EmpireGreen
 import com.empire.dashboard.ui.theme.EmpireRed
 
 @Composable
-fun DashboardScreen(status: EmpireStatus) {
+fun DashboardScreen(status: EmpireStatus, onStartPipeline: () -> Unit = {}, onNavigate: (String) -> Unit = {}) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -50,6 +50,19 @@ fun DashboardScreen(status: EmpireStatus) {
                     PulsingStatusDot(isLive = status.serverTime.isNotEmpty())
                     Text(text = "LIVE", color = EmpireGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+        
+        // GO Button
+        item {
+            Button(
+                onClick = { onStartPipeline(); onNavigate("Progress") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = EmpireGold)
+            ) {
+                Text("🚀 START PIPELINE", color = Color.Black, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
             }
         }
 

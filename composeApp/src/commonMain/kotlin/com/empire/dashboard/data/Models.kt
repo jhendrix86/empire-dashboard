@@ -45,3 +45,75 @@ data class EmpireStatus(
     val recentPipelines: List<RunEntry> = emptyList(),
     val recentBundles: List<RunEntry> = emptyList()
 )
+
+@Serializable
+data class RunStartResponse(
+    val started: Boolean = false,
+    val runId: String = "",
+    val error: String? = null
+)
+
+@Serializable
+data class PipelineStep(
+    val name: String = "",
+    val status: String = "",
+    val detail: String = ""
+)
+
+@Serializable
+data class RunProgress(
+    val status: String = "",
+    val progressPct: Double = 0.0,
+    val steps: List<PipelineStep> = emptyList(),
+    val newLogLines: List<String> = emptyList(),
+    val runId: String? = null,
+    val error: String? = null
+)
+
+@Serializable
+data class Customer(
+    val email: String = "",
+    val name: String = "",
+    val product: String = "",
+    val amountPaid: Double = 0.0,
+    val source: String = "",
+    val dateAdded: String = ""
+)
+
+@Serializable
+data class Lead(
+    val email: String = "",
+    val name: String = "",
+    val source: String = "",
+    val dateAdded: String = ""
+)
+
+@Serializable
+data class RevenueEntry(
+    val type: String = "",
+    val amount: Double = 0.0,
+    val email: String = "",
+    val note: String = "",
+    val at: String = ""
+)
+
+@Serializable
+data class RevenueData(
+    val totalRevenue: Double = 0.0,
+    val totalRefunds: Double = 0.0,
+    val salesCount: Int = 0,
+    val refundCount: Int = 0,
+    val history: List<RevenueEntry> = emptyList()
+)
+
+@Serializable
+data class CustomersResponse(
+    val count: Int = 0,
+    val customers: List<Customer> = emptyList()
+)
+
+@Serializable
+data class LeadsResponse(
+    val count: Int = 0,
+    val leads: List<Lead> = emptyList()
+)
