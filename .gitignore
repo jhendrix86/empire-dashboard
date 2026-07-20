@@ -1,0 +1,28 @@
+# Gradle build outputs
+.gradle/
+build/
+composeApp/build/
+**/build/
+
+# Gradle wrapper jar (committed separately if needed)
+gradle/wrapper/gradle-wrapper.jar
+
+# Local IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+local.properties
+.DS_Store
+
+# Android keystore - NEVER commit
+*.jks
+*.keystore
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Generated distributable artifacts (build locally or via CI)
+composeApp/build/compose/
+composeApp/build/outputs/
