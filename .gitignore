@@ -26,3 +26,8 @@ Desktop.ini
 # Generated distributable artifacts (build locally or via CI)
 composeApp/build/compose/
 composeApp/build/outputs/
+
+# Server secrets and local data (never commit)
+.env
+server/.env
+server/data/
