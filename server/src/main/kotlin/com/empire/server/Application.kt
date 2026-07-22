@@ -1,7 +1,9 @@
 package com.empire.server
 
+import com.empire.server.orchestration.RunOrchestrator
 import com.empire.server.routes.customerRoutes
 import com.empire.server.routes.leadRoutes
+import com.empire.server.routes.pipelineRoutes
 import com.empire.server.routes.revenueRoutes
 import com.empire.server.routes.statusRoutes
 import com.empire.server.storage.CustomerRepository
@@ -58,6 +60,8 @@ fun Application.module() {
     val customerRepository = CustomerRepository()
     val leadRepository = LeadRepository()
     val revenueRepository = RevenueRepository()
+    val orchestrator = RunOrchestrator(runRepository)
+    orchestrator.resumeIfNeeded()
 
     routing {
         get("/health") {
@@ -67,5 +71,6 @@ fun Application.module() {
         customerRoutes(customerRepository)
         leadRoutes(leadRepository)
         revenueRoutes(revenueRepository)
+        pipelineRoutes(orchestrator)
     }
 }
