@@ -19,7 +19,13 @@ class ResearchStage(
     private val runRepository: RunRepository
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {
-        val niche = manifest.niche ?: originateNiche().also { nicheRepository.add(it) }
+        val niche = manifest.niche ?: originateNiche().also { originated ->
+            nicheRepository.add(originated)
+            // Persist to the manifest immediately, before the slow LLM calls below --
+            // otherwise a restart mid-research finds manifest.niche still null and
+            // originates (and records) a second, duplicate niche on resume.
+            runRepository.update(runId) { it.copy(niche = originated) }
+        }
         val nicheSummary = summarize(niche)
 
         val audienceProfile = llm.complete(Personas.AUDIENCE_PERSONA_RESEARCHER, nicheSummary)
@@ -42,7 +48,6 @@ class ResearchStage(
         )
 
         writeArtifact(runRepository, runId, "research-brief.json", ResearchBrief.serializer(), brief)
-        runRepository.update(runId) { it.copy(niche = niche) }
 
         return StageResult(StageOutcome.Continue, detail = "brief ready for ${niche.subNiche}")
     }
