@@ -5,6 +5,7 @@ import com.empire.dashboard.data.RunRequest
 import com.empire.dashboard.data.RunStartResponse
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
+import com.empire.server.orchestration.stages.PolishStage
 import com.empire.server.orchestration.stages.ResearchStage
 import com.empire.server.storage.RunRepository
 import com.empire.server.util.newRunId
@@ -21,7 +22,8 @@ class RunOrchestrator(
     private val runRepository: RunRepository,
     private val researchStage: ResearchStage,
     private val designStage: DesignStage,
-    private val completionStage: CompletionStage
+    private val completionStage: CompletionStage,
+    private val polishStage: PolishStage
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
@@ -103,19 +105,32 @@ class RunOrchestrator(
                 Stage.RESEARCH -> researchStage.run(runId, manifest)
                 Stage.PRODUCT_DESIGN -> designStage.run(runId, manifest)
                 Stage.PRODUCT_COMPLETION -> completionStage.run(runId, manifest)
-                Stage.POLISH_AUDIT, Stage.SHIPPING -> {
-                    // Stub: replaced by real Polish/Audit and Shipping stage logic.
+                Stage.POLISH_AUDIT -> polishStage.run(runId, manifest)
+                Stage.SHIPPING -> {
+                    // Stub: replaced by real Shipping stage logic.
                     delay(2000)
                     StageResult(StageOutcome.Continue, detail = "stub complete")
                 }
             }
         } catch (e: Exception) {
             log(runId, "[error] ${stage.slug} failed: ${e.message}")
+            updateStep(runId, stage, status = "error", detail = e.message ?: "failed")
             return StageOutcome.Fatal("${stage.slug} failed: ${e.message}")
         }
 
-        updateStep(runId, stage, status = "done", detail = result.detail)
-        log(runId, "[done] ${stage.slug} complete")
+        when (result.outcome) {
+            is StageOutcome.Continue -> {
+                updateStep(runId, stage, status = "done", detail = result.detail)
+                log(runId, "[done] ${stage.slug} complete")
+            }
+            is StageOutcome.RetryFrom -> {
+                // Step statuses were already reset by the stage itself (see PolishStage.resetFrom);
+                // executeStages() logs the retry, so nothing further to record here.
+            }
+            is StageOutcome.Fatal -> {
+                updateStep(runId, stage, status = "error", detail = result.detail)
+            }
+        }
         return result.outcome
     }
 

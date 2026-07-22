@@ -4,6 +4,7 @@ import com.empire.server.llm.AnthropicClient
 import com.empire.server.orchestration.RunOrchestrator
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
+import com.empire.server.orchestration.stages.PolishStage
 import com.empire.server.orchestration.stages.ResearchStage
 import com.empire.server.routes.customerRoutes
 import com.empire.server.routes.leadRoutes
@@ -70,7 +71,8 @@ fun Application.module() {
         runRepository = runRepository,
         researchStage = ResearchStage(llm, nicheRepository, runRepository),
         designStage = DesignStage(llm, runRepository),
-        completionStage = CompletionStage(llm, runRepository)
+        completionStage = CompletionStage(llm, runRepository),
+        polishStage = PolishStage(llm, runRepository)
     )
     orchestrator.resumeIfNeeded()
 
