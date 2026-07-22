@@ -16,11 +16,13 @@ fun Route.revenueRoutes(repository: RevenueRepository) {
         call.respond(repository.all())
     }
     post("/revenue/sale") {
+        if (!requireToken(call)) return@post
         val body = call.receive<RevenueMutationRequest>()
         repository.recordSale(body.amount, body.email, body.note)
         call.respondText(text = "\"ok\"", contentType = ContentType.Application.Json)
     }
     post("/revenue/refund") {
+        if (!requireToken(call)) return@post
         val body = call.receive<RevenueMutationRequest>()
         repository.recordRefund(body.amount, body.email, body.note)
         call.respondText(text = "\"ok\"", contentType = ContentType.Application.Json)

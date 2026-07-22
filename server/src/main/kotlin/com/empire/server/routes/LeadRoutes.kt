@@ -21,6 +21,7 @@ fun Route.leadRoutes(repository: LeadRepository) {
         call.respond(repository.all())
     }
     post("/leads") {
+        if (!requireToken(call)) return@post
         val body = call.receive<AddLeadRequest>()
         val lead = repository.add(body.email, body.name, body.source)
         call.respond(lead)

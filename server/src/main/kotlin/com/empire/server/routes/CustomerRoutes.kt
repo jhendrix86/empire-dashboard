@@ -23,6 +23,7 @@ fun Route.customerRoutes(repository: CustomerRepository) {
         call.respond(repository.all())
     }
     post("/customers") {
+        if (!requireToken(call)) return@post
         val body = call.receive<AddCustomerRequest>()
         val customer = repository.add(body.email, body.name, body.product, body.amountPaid, body.source)
         call.respond(customer)

@@ -1,5 +1,6 @@
 package com.empire.server
 
+import com.empire.server.config.AppConfig
 import com.empire.server.llm.AnthropicClient
 import com.empire.server.orchestration.RunOrchestrator
 import com.empire.server.orchestration.stages.CompletionStage
@@ -35,7 +36,12 @@ import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 
 fun main() {
-    embeddedServer(Netty, port = 8765, host = "0.0.0.0", module = Application::module).start(wait = true)
+    check(!AppConfig.bindAllInterfaces || !AppConfig.authToken.isNullOrBlank()) {
+        "EMPIRE_BIND_ALL=true exposes mutating endpoints on the network; " +
+            "set EMPIRE_AUTH_TOKEN before enabling it."
+    }
+    val host = if (AppConfig.bindAllInterfaces) "0.0.0.0" else "127.0.0.1"
+    embeddedServer(Netty, port = 8765, host = host, module = Application::module).start(wait = true)
 }
 
 fun Application.module() {

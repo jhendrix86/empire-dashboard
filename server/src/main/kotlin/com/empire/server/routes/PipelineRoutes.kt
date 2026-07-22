@@ -11,6 +11,7 @@ import io.ktor.server.routing.post
 
 fun Route.pipelineRoutes(orchestrator: RunOrchestrator) {
     post("/run") {
+        if (!requireToken(call)) return@post
         val body = call.receive<RunRequest>()
         call.respond(orchestrator.startRun(body))
     }

@@ -25,8 +25,8 @@ import com.empire.dashboard.ui.theme.EmpireRed
 import kotlinx.coroutines.launch
 
 @Composable
-fun RevenueScreen(apiUrl: String = "http://localhost:8765") {
-    val api = remember { EmpireApi(apiUrl) }
+fun RevenueScreen(apiUrl: String = "http://localhost:8765", authToken: String? = null) {
+    val api = remember { EmpireApi(apiUrl, authToken) }
     val scope = rememberCoroutineScope()
     var revenue by remember { mutableStateOf<RevenueData?>(null) }
     var loading by remember { mutableStateOf(true) }

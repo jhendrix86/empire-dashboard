@@ -22,8 +22,8 @@ import com.empire.dashboard.ui.theme.EmpireSurface
 import kotlinx.coroutines.delay
 
 @Composable
-fun ProgressScreen(apiUrl: String = "http://localhost:8765") {
-    val api = remember { EmpireApi(apiUrl) }
+fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? = null) {
+    val api = remember { EmpireApi(apiUrl, authToken) }
     var progress by remember { mutableStateOf<RunProgress?>(null) }
     var isPolling by remember { mutableStateOf(true) }
     var logTail by remember { mutableStateOf<List<String>>(emptyList()) }

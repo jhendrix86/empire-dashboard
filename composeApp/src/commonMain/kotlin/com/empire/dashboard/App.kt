@@ -23,13 +23,13 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 @Composable
-fun App(serverUrl: String = "http://localhost:8765") {
-    val repo = remember { EmpireRepository(com.empire.dashboard.data.EmpireApi(serverUrl)) }
+fun App(serverUrl: String = "http://localhost:8765", authToken: String? = null) {
+    val repo = remember { EmpireRepository(EmpireApi(serverUrl, authToken)) }
     val state by repo.statusStream(5000L)
         .catch { emit(EmpireState.Error(it.message ?: "Stream error")) }
         .collectAsState(initial = EmpireState.Loading)
-    
-    val api = remember { EmpireApi(serverUrl) }
+
+    val api = remember { EmpireApi(serverUrl, authToken) }
 
     EmpireTheme {
         Surface(
@@ -39,14 +39,14 @@ fun App(serverUrl: String = "http://localhost:8765") {
             when (val s = state) {
                 is EmpireState.Loading -> LoadingScreen()
                 is EmpireState.Error   -> ErrorScreen(s.message)
-                is EmpireState.Success -> EmpireNavHost(s.status, serverUrl = serverUrl, api = api)
+                is EmpireState.Success -> EmpireNavHost(s.status, serverUrl = serverUrl, authToken = authToken, api = api)
             }
         }
     }
 }
 
 @Composable
-private fun EmpireNavHost(status: EmpireStatus, serverUrl: String, api: EmpireApi) {
+private fun EmpireNavHost(status: EmpireStatus, serverUrl: String, authToken: String?, api: EmpireApi) {
     val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
     var navigateTo by remember { mutableStateOf<String?>(null) }
@@ -91,9 +91,9 @@ private fun EmpireNavHost(status: EmpireStatus, serverUrl: String, api: EmpireAp
                     },
                     onNavigate = { navigateTo = it }
                 )
-                1 -> ProgressScreen(apiUrl = serverUrl)
-                2 -> CustomersScreen(apiUrl = serverUrl)
-                3 -> RevenueScreen(apiUrl = serverUrl)
+                1 -> ProgressScreen(apiUrl = serverUrl, authToken = authToken)
+                2 -> CustomersScreen(apiUrl = serverUrl, authToken = authToken)
+                3 -> RevenueScreen(apiUrl = serverUrl, authToken = authToken)
                 4 -> NichesScreen(status.topNiches)
                 5 -> RunHistoryScreen(status.recentPipelines, status.recentBundles)
             }

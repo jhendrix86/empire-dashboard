@@ -24,8 +24,8 @@ import com.empire.dashboard.ui.theme.EmpireSurface
 import kotlinx.coroutines.launch
 
 @Composable
-fun CustomersScreen(apiUrl: String = "http://localhost:8765") {
-    val api = remember { EmpireApi(apiUrl) }
+fun CustomersScreen(apiUrl: String = "http://localhost:8765", authToken: String? = null) {
+    val api = remember { EmpireApi(apiUrl, authToken) }
     val scope = rememberCoroutineScope()
     var customers by remember { mutableStateOf<List<Customer>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }

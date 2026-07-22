@@ -8,6 +8,12 @@ object AppConfig {
     val anthropicApiKey: String? by lazy { env("ANTHROPIC_API_KEY") }
     val anthropicModel: String by lazy { env("ANTHROPIC_MODEL") ?: "claude-sonnet-5" }
 
+    /** Opt-in: expose the server on the LAN (e.g. for the Android app) instead of loopback-only. */
+    val bindAllInterfaces: Boolean by lazy { env("EMPIRE_BIND_ALL")?.toBooleanStrictOrNull() ?: false }
+
+    /** Required whenever [bindAllInterfaces] is true; checked on every mutating route. */
+    val authToken: String? by lazy { env("EMPIRE_AUTH_TOKEN") }
+
     fun env(key: String): String? = System.getenv(key) ?: dotEnv[key]
 
     private val dotEnv: Map<String, String> by lazy {
