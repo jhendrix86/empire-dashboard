@@ -16,6 +16,7 @@ fun Route.pipelineRoutes(orchestrator: RunOrchestrator) {
     }
 
     get("/run-progress") {
-        call.respond(orchestrator.getProgress())
+        val cursor = call.request.queryParameters["cursor"]?.toIntOrNull() ?: 0
+        call.respond(orchestrator.getProgress(cursor))
     }
 }

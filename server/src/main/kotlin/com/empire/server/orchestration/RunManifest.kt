@@ -40,8 +40,7 @@ data class RunManifest(
     val steps: List<PipelineStep> = Stage.entries.map { PipelineStep(name = it.slug, status = "pending", detail = "") },
     val niche: SelectedNiche? = null,
     val bundle: BundleInfo? = null,
-    val error: String? = null,
-    val logCursor: Int = 0
+    val error: String? = null
 ) {
     val progressPct: Double
         get() = steps.count { it.status == "done" } * 100.0 / steps.size

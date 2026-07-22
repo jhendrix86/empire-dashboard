@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -56,8 +57,10 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
         }.body<RunStartResponse>()
     }
 
-    suspend fun getRunProgress(): Result<RunProgress> = runCatching {
-        client.get("$baseUrl/run-progress").body<RunProgress>()
+    suspend fun getRunProgress(sinceCursor: Int = 0): Result<RunProgress> = runCatching {
+        client.get("$baseUrl/run-progress") {
+            parameter("cursor", sinceCursor)
+        }.body<RunProgress>()
     }
 
     suspend fun addCustomer(
@@ -139,3 +142,4 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
             setBody(payload)
         }.body<String>()
     }
+}

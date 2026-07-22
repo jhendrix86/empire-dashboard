@@ -46,16 +46,18 @@ class RunOrchestrator(
         RunStartResponse(started = true, runId = runId)
     }
 
-    fun getProgress(): RunProgress {
+    /**
+     * Stateless per-request read: [sinceCursor] comes from the client's last response
+     * (RunProgress.logCursor) rather than server-stored state, so this never mutates
+     * shared state and is safe for multiple simultaneous viewers or a retried request.
+     */
+    fun getProgress(sinceCursor: Int): RunProgress {
         val runId = runRepository.currentRunId()
             ?: return RunProgress(status = "unknown", progressPct = 0.0)
+        val manifest = runRepository.load(runId)
+            ?: return RunProgress(status = "unknown", progressPct = 0.0)
 
-        var newLines: List<String> = emptyList()
-        val manifest = runRepository.update(runId) { current ->
-            val (lines, newCursor) = runRepository.newLogLinesSince(current.runId, current.logCursor)
-            newLines = lines
-            if (newCursor != current.logCursor) current.copy(logCursor = newCursor) else current
-        } ?: return RunProgress(status = "unknown", progressPct = 0.0)
+        val (newLines, newCursor) = runRepository.newLogLinesSince(runId, sinceCursor)
 
         return RunProgress(
             status = manifest.status,
@@ -63,7 +65,8 @@ class RunOrchestrator(
             steps = manifest.steps,
             newLogLines = newLines,
             runId = manifest.runId,
-            error = manifest.error
+            error = manifest.error,
+            logCursor = newCursor
         )
     }
 

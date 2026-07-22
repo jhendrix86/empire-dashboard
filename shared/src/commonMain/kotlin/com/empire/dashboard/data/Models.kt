@@ -67,7 +67,11 @@ data class RunProgress(
     val steps: List<PipelineStep> = emptyList(),
     val newLogLines: List<String> = emptyList(),
     val runId: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    // Echo this back as the `cursor` query param on the next call to pick up
+    // exactly where this response left off -- delivery is then per-client and
+    // safe to retry, instead of a single server-side position every poller shares.
+    val logCursor: Int = 0
 )
 
 @Serializable
