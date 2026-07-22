@@ -10,8 +10,19 @@ Live UI showing your entire autonomous pipeline — runs on Android, Windows, an
 
 ## Step 1 — Start the API server
 
+By default the pipeline calls Anthropic:
+
 ```powershell
 $env:ANTHROPIC_API_KEY = "sk-ant-..."
+gradle :server:run
+```
+
+To use OpenAI instead, set `LLM_PROVIDER` and an OpenAI key (defaults to `gpt-4o-mini`,
+override with `OPENAI_MODEL`):
+
+```powershell
+$env:LLM_PROVIDER = "openai"
+$env:OPENAI_API_KEY = "sk-..."
 gradle :server:run
 ```
 

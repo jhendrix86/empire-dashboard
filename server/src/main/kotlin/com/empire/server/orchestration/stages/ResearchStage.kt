@@ -1,7 +1,7 @@
 package com.empire.server.orchestration.stages
 
 import com.empire.dashboard.data.SelectedNiche
-import com.empire.server.llm.AnthropicClient
+import com.empire.server.llm.LlmClient
 import com.empire.server.llm.Personas
 import com.empire.server.llm.extractJsonObject
 import com.empire.server.orchestration.RunManifest
@@ -14,7 +14,7 @@ import com.empire.server.storage.RunRepository
 import com.empire.server.storage.appJson
 
 class ResearchStage(
-    private val llm: AnthropicClient,
+    private val llm: LlmClient,
     private val nicheRepository: NicheRepository,
     private val runRepository: RunRepository
 ) {

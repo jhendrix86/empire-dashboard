@@ -2,6 +2,8 @@ package com.empire.server
 
 import com.empire.server.config.AppConfig
 import com.empire.server.llm.AnthropicClient
+import com.empire.server.llm.LlmClient
+import com.empire.server.llm.OpenAiClient
 import com.empire.server.orchestration.RunOrchestrator
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
@@ -73,7 +75,10 @@ fun Application.module() {
     val leadRepository = LeadRepository()
     val revenueRepository = RevenueRepository()
 
-    val llm = AnthropicClient()
+    val llm: LlmClient = when (AppConfig.llmProvider) {
+        "openai" -> OpenAiClient()
+        else -> AnthropicClient()
+    }
     val orchestrator = RunOrchestrator(
         runRepository = runRepository,
         researchStage = ResearchStage(llm, nicheRepository, runRepository),

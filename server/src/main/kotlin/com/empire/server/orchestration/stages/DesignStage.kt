@@ -1,6 +1,6 @@
 package com.empire.server.orchestration.stages
 
-import com.empire.server.llm.AnthropicClient
+import com.empire.server.llm.LlmClient
 import com.empire.server.llm.Personas
 import com.empire.server.llm.extractJsonObject
 import com.empire.server.orchestration.RunManifest
@@ -15,7 +15,7 @@ import com.empire.server.storage.RunRepository
 import com.empire.server.storage.appJson
 
 class DesignStage(
-    private val llm: AnthropicClient,
+    private val llm: LlmClient,
     private val runRepository: RunRepository
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {

@@ -1,6 +1,6 @@
 package com.empire.server.orchestration.stages
 
-import com.empire.server.llm.AnthropicClient
+import com.empire.server.llm.LlmClient
 import com.empire.server.llm.Personas
 import com.empire.server.llm.extractJsonObject
 import com.empire.server.orchestration.InternalStatus
@@ -26,7 +26,7 @@ const val MAX_AUDIT_RETRIES = 3
 private data class CheckResult(val pass: Boolean, val notes: String)
 
 class PolishStage(
-    private val llm: AnthropicClient,
+    private val llm: LlmClient,
     private val runRepository: RunRepository
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {

@@ -48,12 +48,12 @@ class AnthropicClient(
     private val apiKey: String? = AppConfig.anthropicApiKey,
     private val model: String = AppConfig.anthropicModel,
     private val maxTokens: Int = 4096
-) {
+) : LlmClient {
     private val client = HttpClient(CIO) {
         install(ContentNegotiation) { json(anthropicJson) }
     }
 
-    suspend fun complete(systemPrompt: String, userPrompt: String): String {
+    override suspend fun complete(systemPrompt: String, userPrompt: String): String {
         val key = apiKey ?: error("ANTHROPIC_API_KEY is not set")
 
         val response = client.post("https://api.anthropic.com/v1/messages") {
