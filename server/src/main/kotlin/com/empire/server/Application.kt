@@ -1,14 +1,25 @@
 package com.empire.server
 
+import com.empire.server.routes.customerRoutes
+import com.empire.server.routes.leadRoutes
+import com.empire.server.routes.revenueRoutes
+import com.empire.server.routes.statusRoutes
+import com.empire.server.storage.CustomerRepository
+import com.empire.server.storage.LeadRepository
+import com.empire.server.storage.NicheRepository
+import com.empire.server.storage.RevenueRepository
+import com.empire.server.storage.RunRepository
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
+import io.ktor.server.application.log
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.callloging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.uri
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
@@ -34,16 +45,27 @@ fun Application.module() {
     }
     install(StatusPages) {
         exception<Throwable> { call, cause ->
+            call.application.log.error("Unhandled exception handling ${call.request.uri}", cause)
             call.respondText(
-                text = "Internal error: ${cause.message}",
+                text = "Internal server error",
                 status = HttpStatusCode.InternalServerError
             )
         }
     }
 
+    val runRepository = RunRepository()
+    val nicheRepository = NicheRepository()
+    val customerRepository = CustomerRepository()
+    val leadRepository = LeadRepository()
+    val revenueRepository = RevenueRepository()
+
     routing {
         get("/health") {
             call.respondText("OK")
         }
+        statusRoutes(runRepository, nicheRepository)
+        customerRoutes(customerRepository)
+        leadRoutes(leadRepository)
+        revenueRoutes(revenueRepository)
     }
 }
