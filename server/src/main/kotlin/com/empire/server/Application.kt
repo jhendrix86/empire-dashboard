@@ -6,6 +6,7 @@ import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
 import com.empire.server.orchestration.stages.PolishStage
 import com.empire.server.orchestration.stages.ResearchStage
+import com.empire.server.orchestration.stages.ShippingStage
 import com.empire.server.routes.customerRoutes
 import com.empire.server.routes.leadRoutes
 import com.empire.server.routes.pipelineRoutes
@@ -72,7 +73,8 @@ fun Application.module() {
         researchStage = ResearchStage(llm, nicheRepository, runRepository),
         designStage = DesignStage(llm, runRepository),
         completionStage = CompletionStage(llm, runRepository),
-        polishStage = PolishStage(llm, runRepository)
+        polishStage = PolishStage(llm, runRepository),
+        shippingStage = ShippingStage(llm, runRepository)
     )
     orchestrator.resumeIfNeeded()
 

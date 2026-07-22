@@ -7,13 +7,13 @@ import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
 import com.empire.server.orchestration.stages.PolishStage
 import com.empire.server.orchestration.stages.ResearchStage
+import com.empire.server.orchestration.stages.ShippingStage
 import com.empire.server.storage.RunRepository
 import com.empire.server.util.newRunId
 import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -23,7 +23,8 @@ class RunOrchestrator(
     private val researchStage: ResearchStage,
     private val designStage: DesignStage,
     private val completionStage: CompletionStage,
-    private val polishStage: PolishStage
+    private val polishStage: PolishStage,
+    private val shippingStage: ShippingStage
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
@@ -106,11 +107,7 @@ class RunOrchestrator(
                 Stage.PRODUCT_DESIGN -> designStage.run(runId, manifest)
                 Stage.PRODUCT_COMPLETION -> completionStage.run(runId, manifest)
                 Stage.POLISH_AUDIT -> polishStage.run(runId, manifest)
-                Stage.SHIPPING -> {
-                    // Stub: replaced by real Shipping stage logic.
-                    delay(2000)
-                    StageResult(StageOutcome.Continue, detail = "stub complete")
-                }
+                Stage.SHIPPING -> shippingStage.run(runId, manifest)
             }
         } catch (e: Exception) {
             log(runId, "[error] ${stage.slug} failed: ${e.message}")
