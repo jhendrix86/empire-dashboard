@@ -117,3 +117,17 @@ data class LeadsResponse(
     val count: Int = 0,
     val leads: List<Lead> = emptyList()
 )
+
+@Serializable
+data class RunRequest(
+    val gumroadUrl: String? = null,
+    val leadMagnetUrl: String? = null,
+    val yourName: String? = null
+)
+
+@Serializable
+data class RevenueMutationRequest(
+    val amount: Double = 0.0,
+    val email: String? = null,
+    val note: String? = null
+)
