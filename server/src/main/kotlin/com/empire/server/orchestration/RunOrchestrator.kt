@@ -3,6 +3,9 @@ package com.empire.server.orchestration
 import com.empire.dashboard.data.RunProgress
 import com.empire.dashboard.data.RunRequest
 import com.empire.dashboard.data.RunStartResponse
+import com.empire.server.orchestration.stages.CompletionStage
+import com.empire.server.orchestration.stages.DesignStage
+import com.empire.server.orchestration.stages.ResearchStage
 import com.empire.server.storage.RunRepository
 import com.empire.server.util.newRunId
 import java.time.Instant
@@ -14,7 +17,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class RunOrchestrator(private val runRepository: RunRepository) {
+class RunOrchestrator(
+    private val runRepository: RunRepository,
+    private val researchStage: ResearchStage,
+    private val designStage: DesignStage,
+    private val completionStage: CompletionStage
+) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
 
@@ -36,13 +44,15 @@ class RunOrchestrator(private val runRepository: RunRepository) {
     }
 
     fun getProgress(): RunProgress {
-        val manifest = runRepository.currentManifest()
+        val runId = runRepository.currentRunId()
             ?: return RunProgress(status = "unknown", progressPct = 0.0)
 
-        val (newLines, newCursor) = runRepository.newLogLinesSince(manifest.runId, manifest.logCursor)
-        if (newCursor != manifest.logCursor) {
-            runRepository.save(manifest.copy(logCursor = newCursor))
-        }
+        var newLines: List<String> = emptyList()
+        val manifest = runRepository.update(runId) { current ->
+            val (lines, newCursor) = runRepository.newLogLinesSince(current.runId, current.logCursor)
+            newLines = lines
+            if (newCursor != current.logCursor) current.copy(logCursor = newCursor) else current
+        } ?: return RunProgress(status = "unknown", progressPct = 0.0)
 
         return RunProgress(
             status = manifest.status,
@@ -85,33 +95,49 @@ class RunOrchestrator(private val runRepository: RunRepository) {
         updateStep(runId, stage, status = "running", detail = "")
         log(runId, "[info] ${stage.slug} started")
 
-        // Stub: replaced by real department logic (Research/Design/Completion/Polish/Shipping).
-        delay(2000)
+        val manifest = runRepository.load(runId)
+            ?: return StageOutcome.Fatal("manifest missing for $runId")
 
-        updateStep(runId, stage, status = "done", detail = "stub complete")
+        val result = try {
+            when (stage) {
+                Stage.RESEARCH -> researchStage.run(runId, manifest)
+                Stage.PRODUCT_DESIGN -> designStage.run(runId, manifest)
+                Stage.PRODUCT_COMPLETION -> completionStage.run(runId, manifest)
+                Stage.POLISH_AUDIT, Stage.SHIPPING -> {
+                    // Stub: replaced by real Polish/Audit and Shipping stage logic.
+                    delay(2000)
+                    StageResult(StageOutcome.Continue, detail = "stub complete")
+                }
+            }
+        } catch (e: Exception) {
+            log(runId, "[error] ${stage.slug} failed: ${e.message}")
+            return StageOutcome.Fatal("${stage.slug} failed: ${e.message}")
+        }
+
+        updateStep(runId, stage, status = "done", detail = result.detail)
         log(runId, "[done] ${stage.slug} complete")
-        return StageOutcome.Continue
+        return result.outcome
     }
 
     private fun updateStep(runId: String, stage: Stage, status: String, detail: String) {
-        runRepository.load(runId)?.let { manifest ->
+        runRepository.update(runId) { manifest ->
             val updatedSteps = manifest.steps.map { step ->
                 if (step.name == stage.slug) step.copy(status = status, detail = detail) else step
             }
-            runRepository.save(manifest.copy(currentStage = stage.slug, steps = updatedSteps))
+            manifest.copy(currentStage = stage.slug, steps = updatedSteps)
         }
     }
 
     private fun markDone(runId: String) {
-        runRepository.load(runId)?.let { manifest ->
-            runRepository.save(manifest.copy(status = RunStatus.DONE, internalStatus = InternalStatus.DONE))
+        runRepository.update(runId) { manifest ->
+            manifest.copy(status = RunStatus.DONE, internalStatus = InternalStatus.DONE)
         }
         log(runId, "[done] run $runId complete")
     }
 
     private fun markError(runId: String, reason: String) {
-        runRepository.load(runId)?.let { manifest ->
-            runRepository.save(manifest.copy(status = RunStatus.ERROR, error = reason))
+        runRepository.update(runId) { manifest ->
+            manifest.copy(status = RunStatus.ERROR, error = reason)
         }
         log(runId, "[error] $reason")
     }

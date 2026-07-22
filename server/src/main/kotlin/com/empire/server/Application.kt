@@ -1,6 +1,10 @@
 package com.empire.server
 
+import com.empire.server.llm.AnthropicClient
 import com.empire.server.orchestration.RunOrchestrator
+import com.empire.server.orchestration.stages.CompletionStage
+import com.empire.server.orchestration.stages.DesignStage
+import com.empire.server.orchestration.stages.ResearchStage
 import com.empire.server.routes.customerRoutes
 import com.empire.server.routes.leadRoutes
 import com.empire.server.routes.pipelineRoutes
@@ -60,7 +64,14 @@ fun Application.module() {
     val customerRepository = CustomerRepository()
     val leadRepository = LeadRepository()
     val revenueRepository = RevenueRepository()
-    val orchestrator = RunOrchestrator(runRepository)
+
+    val llm = AnthropicClient()
+    val orchestrator = RunOrchestrator(
+        runRepository = runRepository,
+        researchStage = ResearchStage(llm, nicheRepository, runRepository),
+        designStage = DesignStage(llm, runRepository),
+        completionStage = CompletionStage(llm, runRepository)
+    )
     orchestrator.resumeIfNeeded()
 
     routing {

@@ -10,3 +10,5 @@ sealed class StageOutcome {
     data class RetryFrom(val stage: Stage, val reason: String) : StageOutcome()
     data class Fatal(val reason: String) : StageOutcome()
 }
+
+data class StageResult(val outcome: StageOutcome, val detail: String = "")

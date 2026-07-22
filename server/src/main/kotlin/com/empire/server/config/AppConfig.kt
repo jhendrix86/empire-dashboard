@@ -6,6 +6,7 @@ object AppConfig {
     val dataDir: File = File(System.getenv("EMPIRE_DATA_DIR") ?: "server/data").apply { mkdirs() }
 
     val anthropicApiKey: String? by lazy { env("ANTHROPIC_API_KEY") }
+    val anthropicModel: String by lazy { env("ANTHROPIC_MODEL") ?: "claude-sonnet-5" }
 
     fun env(key: String): String? = System.getenv(key) ?: dotEnv[key]
 
