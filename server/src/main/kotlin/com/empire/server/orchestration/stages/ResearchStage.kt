@@ -20,11 +20,11 @@ class ResearchStage(
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {
         val niche = manifest.niche ?: originateNiche().also { originated ->
-            nicheRepository.add(originated)
-            // Persist to the manifest immediately, before the slow LLM calls below --
-            // otherwise a restart mid-research finds manifest.niche still null and
-            // originates (and records) a second, duplicate niche on resume.
+            // Persist to the manifest before recording it in the niche repository --
+            // otherwise a restart in between the two writes finds manifest.niche still
+            // null and originates (and records) a second, duplicate niche on resume.
             runRepository.update(runId) { it.copy(niche = originated) }
+            nicheRepository.add(originated)
         }
         val nicheSummary = summarize(niche)
 
