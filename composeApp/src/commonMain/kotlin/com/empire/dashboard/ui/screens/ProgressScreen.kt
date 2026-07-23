@@ -22,17 +22,19 @@ import com.empire.dashboard.ui.theme.EmpireSurface
 import kotlinx.coroutines.delay
 
 @Composable
-fun ProgressScreen(apiUrl: String = "http://localhost:8765") {
-    val api = remember { EmpireApi(apiUrl) }
+fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? = null) {
+    val api = remember { EmpireApi(apiUrl, authToken) }
     var progress by remember { mutableStateOf<RunProgress?>(null) }
     var isPolling by remember { mutableStateOf(true) }
     var logTail by remember { mutableStateOf<List<String>>(emptyList()) }
-    
+    var logCursor by remember { mutableStateOf(0) }
+
     LaunchedEffect(isPolling) {
         while (isPolling) {
-            api.getRunProgress().onSuccess { p ->
+            api.getRunProgress(sinceCursor = logCursor).onSuccess { p ->
                 progress = p
                 logTail = (logTail + p.newLogLines).takeLast(15)
+                logCursor = p.logCursor
                 if (p.status == "done" || p.status == "error") {
                     isPolling = false
                 }

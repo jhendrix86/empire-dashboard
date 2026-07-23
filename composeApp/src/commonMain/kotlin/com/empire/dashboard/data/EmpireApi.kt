@@ -3,7 +3,10 @@ package com.empire.dashboard.data
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -11,7 +14,12 @@ import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
-class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
+/**
+ * [authToken] only matters when the server has EMPIRE_BIND_ALL=true (LAN mode) --
+ * it must match the server's EMPIRE_AUTH_TOKEN, sent as the X-Empire-Token header
+ * on every request. Leave it null for the default loopback-only server.
+ */
+class EmpireApi(private val baseUrl: String = "http://localhost:8765", authToken: String? = null) {
 
     private val client = HttpClient {
         install(ContentNegotiation) {
@@ -19,6 +27,9 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
                 ignoreUnknownKeys = true
                 isLenient = true
             })
+        }
+        defaultRequest {
+            authToken?.let { header("X-Empire-Token", it) }
         }
     }
 
@@ -56,8 +67,10 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
         }.body<RunStartResponse>()
     }
 
-    suspend fun getRunProgress(): Result<RunProgress> = runCatching {
-        client.get("$baseUrl/run-progress").body<RunProgress>()
+    suspend fun getRunProgress(sinceCursor: Int = 0): Result<RunProgress> = runCatching {
+        client.get("$baseUrl/run-progress") {
+            parameter("cursor", sinceCursor)
+        }.body<RunProgress>()
     }
 
     suspend fun addCustomer(
@@ -139,3 +152,4 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765") {
             setBody(payload)
         }.body<String>()
     }
+}

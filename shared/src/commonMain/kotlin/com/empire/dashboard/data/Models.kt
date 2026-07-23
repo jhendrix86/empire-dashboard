@@ -67,7 +67,11 @@ data class RunProgress(
     val steps: List<PipelineStep> = emptyList(),
     val newLogLines: List<String> = emptyList(),
     val runId: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    // Echo this back as the `cursor` query param on the next call to pick up
+    // exactly where this response left off -- delivery is then per-client and
+    // safe to retry, instead of a single server-side position every poller shares.
+    val logCursor: Int = 0
 )
 
 @Serializable
@@ -116,4 +120,18 @@ data class CustomersResponse(
 data class LeadsResponse(
     val count: Int = 0,
     val leads: List<Lead> = emptyList()
+)
+
+@Serializable
+data class RunRequest(
+    val gumroadUrl: String? = null,
+    val leadMagnetUrl: String? = null,
+    val yourName: String? = null
+)
+
+@Serializable
+data class RevenueMutationRequest(
+    val amount: Double = 0.0,
+    val email: String? = null,
+    val note: String? = null
 )
