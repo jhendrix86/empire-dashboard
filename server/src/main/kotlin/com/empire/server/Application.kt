@@ -44,6 +44,10 @@ fun main() {
         "EMPIRE_BIND_ALL=true exposes mutating endpoints on the network; " +
             "set EMPIRE_AUTH_TOKEN before enabling it."
     }
+    check(AppConfig.maxRunCostUsdIsValid) {
+        "EMPIRE_MAX_RUN_COST_USD is set to '${AppConfig.maxRunCostUsdRaw}', which isn't a positive number; " +
+            "unset it for no cap, or set it to e.g. \"2.00\"."
+    }
     val host = if (AppConfig.bindAllInterfaces) "0.0.0.0" else "127.0.0.1"
     embeddedServer(Netty, port = 8765, host = host, module = Application::module).start(wait = true)
 }

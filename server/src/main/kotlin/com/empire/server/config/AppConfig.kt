@@ -14,8 +14,16 @@ object AppConfig {
     val openAiApiKey: String? by lazy { env("OPENAI_API_KEY") }
     val openAiModel: String by lazy { env("OPENAI_MODEL") ?: "gpt-4o-mini" }
 
+    /** Raw EMPIRE_MAX_RUN_COST_USD value, kept distinct from [maxRunCostUsd] so a typo
+     *  (e.g. "$2.00") can be told apart from the variable being unset -- both would
+     *  otherwise collapse to null and silently mean "unlimited". */
+    val maxRunCostUsdRaw: String? by lazy { env("EMPIRE_MAX_RUN_COST_USD") }
+
     /** Optional ceiling on estimated LLM spend per pipeline run; unset means unlimited. */
-    val maxRunCostUsd: Double? by lazy { env("EMPIRE_MAX_RUN_COST_USD")?.toDoubleOrNull() }
+    val maxRunCostUsd: Double? by lazy { maxRunCostUsdRaw?.toDoubleOrNull()?.takeIf { it > 0 } }
+
+    /** False only when EMPIRE_MAX_RUN_COST_USD is set to something that isn't a positive number. */
+    val maxRunCostUsdIsValid: Boolean by lazy { maxRunCostUsdRaw == null || maxRunCostUsd != null }
 
     /** Opt-in: expose the server on the LAN (e.g. for the Android app) instead of loopback-only. */
     val bindAllInterfaces: Boolean by lazy { env("EMPIRE_BIND_ALL")?.toBooleanStrictOrNull() ?: false }
