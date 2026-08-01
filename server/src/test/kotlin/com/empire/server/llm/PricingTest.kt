@@ -29,4 +29,14 @@ class PricingTest {
 
         assertTrue(mini < sonnet)
     }
+
+    @Test
+    fun `dated model ids match on the bare family token, not just the hyphenated repo default`() {
+        val datedHaiku = Pricing.estimateCostUsd("claude-3-5-haiku-20241022", inputChars = 4000, outputChars = 4000)
+        val bareHaiku = Pricing.estimateCostUsd("haiku", inputChars = 4000, outputChars = 4000)
+        val opusFallback = Pricing.estimateCostUsd("claude-opus-5", inputChars = 4000, outputChars = 4000)
+
+        assertEquals(bareHaiku, datedHaiku)
+        assertTrue(datedHaiku < opusFallback) // must not silently fall back to the priciest rate
+    }
 }

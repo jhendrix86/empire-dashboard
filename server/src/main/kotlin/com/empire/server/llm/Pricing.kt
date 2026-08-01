@@ -7,9 +7,9 @@ package com.empire.server.llm
  */
 object Pricing {
     private val ratesPerMillionTokens = listOf(
-        "claude-sonnet" to (3.00 to 15.00),
-        "claude-opus" to (15.00 to 75.00),
-        "claude-haiku" to (0.80 to 4.00),
+        "sonnet" to (3.00 to 15.00),
+        "opus" to (15.00 to 75.00),
+        "haiku" to (0.80 to 4.00),
         "gpt-4o-mini" to (0.15 to 0.60),
         "gpt-4o" to (2.50 to 10.00)
     )
