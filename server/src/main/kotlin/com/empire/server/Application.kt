@@ -85,7 +85,11 @@ fun Application.module() {
         "openai" -> OpenAiClient() to AppConfig.openAiModel
         else -> AnthropicClient() to AppConfig.anthropicModel
     }
-    val budgetGuard = BudgetGuard(AppConfig.maxRunCostUsd)
+    val budgetGuard = BudgetGuard(AppConfig.maxRunCostUsd) { spent ->
+        runRepository.currentRunId()?.let { runId ->
+            runRepository.update(runId) { it.copy(spentUsd = spent) }
+        }
+    }
     val llm: LlmClient = CostTrackingLlmClient(rawLlm, model, budgetGuard)
     val orchestrator = RunOrchestrator(
         runRepository = runRepository,

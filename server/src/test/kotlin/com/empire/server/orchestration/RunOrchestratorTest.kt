@@ -99,4 +99,38 @@ class RunOrchestratorTest {
         assertEquals(RunStatus.ERROR, manifest.status)
         assertTrue(manifest.error.orEmpty().contains("budget"))
     }
+
+    @Test
+    fun `spend persisted mid-run lets a restart's fresh BudgetGuard pick up where it left off`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        val cap = 0.000001
+
+        // Mirrors how Application.module() wires BudgetGuard: persist the running total onto
+        // whichever run is current, so a restart doesn't hand the resumed run a fresh cap.
+        fun persistingGuard(): BudgetGuard = BudgetGuard(maxCostUsd = cap) { spent ->
+            runRepository.currentRunId()?.let { runId -> runRepository.update(runId) { it.copy(spentUsd = spent) } }
+        }
+
+        val firstGuard = persistingGuard()
+        val firstLlm = CostTrackingLlmClient(FakeLlmClient(happyPathResponder()), model = "claude-opus-5", guard = firstGuard)
+        val response = newOrchestrator(firstLlm, runRepository, firstGuard).startRun(RunRequest())
+        val afterFirstAttempt = awaitTerminal(runRepository, response.runId)
+
+        assertEquals(RunStatus.ERROR, afterFirstAttempt.status)
+        assertTrue(afterFirstAttempt.spentUsd > 0.0)
+
+        // Simulate a server restart mid-run: the manifest is still RUNNING (as if the crash
+        // happened before markError ran), and Application.module() would construct a brand
+        // new, zeroed BudgetGuard on the new process -- only resumeIfNeeded's seed() call
+        // stands between that and a fresh full budget.
+        runRepository.update(response.runId) { it.copy(status = RunStatus.RUNNING, error = null) }
+        val secondGuard = persistingGuard()
+        val secondLlm = CostTrackingLlmClient(FakeLlmClient(happyPathResponder()), model = "claude-opus-5", guard = secondGuard)
+        newOrchestrator(secondLlm, runRepository, secondGuard).resumeIfNeeded()
+
+        val afterResume = awaitTerminal(runRepository, response.runId)
+
+        assertEquals(RunStatus.ERROR, afterResume.status)
+        assertTrue(afterResume.error.orEmpty().contains("budget"))
+    }
 }

@@ -77,6 +77,9 @@ class RunOrchestrator(
     fun resumeIfNeeded() {
         val manifest = runRepository.currentManifest() ?: return
         if (manifest.status != RunStatus.RUNNING) return
+        // Rehydrate rather than reset: the run's spend cap and reported total must survive
+        // the restart, or a crash/restart loop could compound spend past the configured cap.
+        budgetGuard.seed(manifest.spentUsd)
         val resumeStage = Stage.entries.firstOrNull { it.slug == manifest.currentStage } ?: Stage.RESEARCH
         log(manifest.runId, "[warn] resuming run ${manifest.runId} from ${resumeStage.slug} after restart")
         scope.launch { executeStages(manifest.runId, resumeStage) }

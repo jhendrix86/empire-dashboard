@@ -40,7 +40,10 @@ data class RunManifest(
     val steps: List<PipelineStep> = Stage.entries.map { PipelineStep(name = it.slug, status = "pending", detail = "") },
     val niche: SelectedNiche? = null,
     val bundle: BundleInfo? = null,
-    val error: String? = null
+    val error: String? = null,
+    // Mirrors BudgetGuard's running total so a server restart mid-run can rehydrate the
+    // cap accumulator (see RunOrchestrator.resumeIfNeeded) instead of granting a fresh budget.
+    val spentUsd: Double = 0.0
 ) {
     val progressPct: Double
         get() = steps.count { it.status == "done" } * 100.0 / steps.size

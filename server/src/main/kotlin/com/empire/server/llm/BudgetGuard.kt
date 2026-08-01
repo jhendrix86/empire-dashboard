@@ -6,14 +6,26 @@ class RunBudgetExceededException(message: String) : Exception(message)
 
 /**
  * Tracks estimated spend for the currently active run. Only one run executes at a time
- * (RunOrchestrator.startRun enforces this), so a single mutable accumulator reset at the
- * start of each run is sufficient -- no per-run keying needed.
+ * (RunOrchestrator.startRun enforces this), so a single mutable accumulator is sufficient
+ * -- no per-run keying needed. [onSpendChanged] lets the caller persist the running total
+ * (e.g. onto the run manifest) so it survives a server restart mid-run: without that, a
+ * restart would hand a resumed run a fresh full budget, and a crash/restart loop could
+ * compound spend past the configured cap indefinitely.
  */
-class BudgetGuard(private val maxCostUsd: Double?) {
+class BudgetGuard(
+    private val maxCostUsd: Double?,
+    private val onSpendChanged: (Double) -> Unit = {}
+) {
     @Volatile private var spentUsd: Double = 0.0
 
+    /** Starts a brand-new run's tally at zero. */
     fun reset() {
         spentUsd = 0.0
+    }
+
+    /** Rehydrates the tally after a server restart from a previously persisted total. */
+    fun seed(persistedSpentUsd: Double) {
+        spentUsd = persistedSpentUsd
     }
 
     fun spent(): Double = spentUsd
@@ -22,6 +34,7 @@ class BudgetGuard(private val maxCostUsd: Double?) {
     @Synchronized
     fun record(costUsd: Double) {
         spentUsd += costUsd
+        onSpendChanged(spentUsd)
         val cap = maxCostUsd ?: return
         if (spentUsd > cap) {
             throw RunBudgetExceededException(
