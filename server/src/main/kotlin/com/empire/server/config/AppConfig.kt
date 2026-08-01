@@ -17,7 +17,7 @@ object AppConfig {
     /** Raw EMPIRE_MAX_RUN_COST_USD value, kept distinct from [maxRunCostUsd] so a typo
      *  (e.g. "$2.00") can be told apart from the variable being unset -- both would
      *  otherwise collapse to null and silently mean "unlimited". */
-    val maxRunCostUsdRaw: String? by lazy { env("EMPIRE_MAX_RUN_COST_USD") }
+    val maxRunCostUsdRaw: String? by lazy { env("EMPIRE_MAX_RUN_COST_USD")?.trim()?.takeIf { it.isNotEmpty() } }
 
     /** Optional ceiling on estimated LLM spend per pipeline run; unset means unlimited. */
     val maxRunCostUsd: Double? by lazy { maxRunCostUsdRaw?.toDoubleOrNull()?.takeIf { it > 0 } }
