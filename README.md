@@ -28,6 +28,22 @@ gradle :server:run
 
 Server runs at `http://127.0.0.1:8765` by default. The app auto-polls every 5 seconds.
 
+### Optional: cap LLM spend per run
+
+To stop an autonomous run before it burns through your API budget (e.g. a runaway
+Polish/Audit retry loop, or a Design stage deciding on an unusually large number of
+output formats), set a per-run ceiling:
+
+```powershell
+$env:EMPIRE_MAX_RUN_COST_USD = "2.00"
+```
+
+Spend is estimated from request/response character counts against public per-model
+rates (not exact billing). When a run crosses the cap, the current stage fails with a
+clear "exceeded its $X.XX LLM budget" error instead of continuing to spend. Unset (the
+default) means unlimited. Estimated spend for each run is written to that run's log
+either way, whether it finished or errored.
+
 ### Optional: LAN access (for the Android app)
 
 By default the server only listens on loopback, so nothing outside this machine can

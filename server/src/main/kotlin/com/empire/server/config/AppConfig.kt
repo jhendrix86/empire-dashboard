@@ -14,6 +14,9 @@ object AppConfig {
     val openAiApiKey: String? by lazy { env("OPENAI_API_KEY") }
     val openAiModel: String by lazy { env("OPENAI_MODEL") ?: "gpt-4o-mini" }
 
+    /** Optional ceiling on estimated LLM spend per pipeline run; unset means unlimited. */
+    val maxRunCostUsd: Double? by lazy { env("EMPIRE_MAX_RUN_COST_USD")?.toDoubleOrNull() }
+
     /** Opt-in: expose the server on the LAN (e.g. for the Android app) instead of loopback-only. */
     val bindAllInterfaces: Boolean by lazy { env("EMPIRE_BIND_ALL")?.toBooleanStrictOrNull() ?: false }
 
