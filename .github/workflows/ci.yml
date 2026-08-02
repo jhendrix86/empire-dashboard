@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  server:
+    name: Build and test :server
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # No gradlew is committed to this repo (see gradle/wrapper/gradle-wrapper.properties
+      # for the pinned version), so provision Gradle directly instead of via the wrapper.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      # Scoped to :server (the Ktor backend, where the pipeline logic and its tests live)
+      # rather than the whole build -- composeApp/shared also configure Android targets,
+      # which would need an Android SDK setup step unrelated to this module's correctness.
+      - name: Build and test the server module
+        run: gradle :server:build --console=plain

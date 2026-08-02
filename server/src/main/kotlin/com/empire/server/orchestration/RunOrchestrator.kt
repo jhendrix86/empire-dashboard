@@ -3,6 +3,7 @@ package com.empire.server.orchestration
 import com.empire.dashboard.data.RunProgress
 import com.empire.dashboard.data.RunRequest
 import com.empire.dashboard.data.RunStartResponse
+import com.empire.server.llm.BudgetGuard
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
 import com.empire.server.orchestration.stages.PolishStage
@@ -24,7 +25,8 @@ class RunOrchestrator(
     private val designStage: DesignStage,
     private val completionStage: CompletionStage,
     private val polishStage: PolishStage,
-    private val shippingStage: ShippingStage
+    private val shippingStage: ShippingStage,
+    private val budgetGuard: BudgetGuard
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
@@ -39,6 +41,7 @@ class RunOrchestrator(
         val manifest = RunManifest(runId = runId, createdAt = Instant.now().toString())
         runRepository.save(manifest)
         runRepository.setCurrentRunId(runId)
+        budgetGuard.reset()
         log(runId, "[info] run $runId started")
 
         scope.launch { executeStages(runId, Stage.RESEARCH) }
@@ -74,6 +77,9 @@ class RunOrchestrator(
     fun resumeIfNeeded() {
         val manifest = runRepository.currentManifest() ?: return
         if (manifest.status != RunStatus.RUNNING) return
+        // Rehydrate rather than reset: the run's spend cap and reported total must survive
+        // the restart, or a crash/restart loop could compound spend past the configured cap.
+        budgetGuard.seed(manifest.spentUsd)
         val resumeStage = Stage.entries.firstOrNull { it.slug == manifest.currentStage } ?: Stage.RESEARCH
         log(manifest.runId, "[warn] resuming run ${manifest.runId} from ${resumeStage.slug} after restart")
         scope.launch { executeStages(manifest.runId, resumeStage) }
@@ -148,6 +154,7 @@ class RunOrchestrator(
             manifest.copy(status = RunStatus.DONE, internalStatus = InternalStatus.DONE)
         }
         log(runId, "[done] run $runId complete")
+        log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
     }
 
     private fun markError(runId: String, reason: String) {
@@ -155,6 +162,7 @@ class RunOrchestrator(
             manifest.copy(status = RunStatus.ERROR, error = reason)
         }
         log(runId, "[error] $reason")
+        log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
     }
 
     private fun log(runId: String, line: String) {

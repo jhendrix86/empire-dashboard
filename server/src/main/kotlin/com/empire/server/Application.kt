@@ -2,6 +2,8 @@ package com.empire.server
 
 import com.empire.server.config.AppConfig
 import com.empire.server.llm.AnthropicClient
+import com.empire.server.llm.BudgetGuard
+import com.empire.server.llm.CostTrackingLlmClient
 import com.empire.server.llm.LlmClient
 import com.empire.server.llm.OpenAiClient
 import com.empire.server.orchestration.RunOrchestrator
@@ -42,6 +44,10 @@ fun main() {
         "EMPIRE_BIND_ALL=true exposes mutating endpoints on the network; " +
             "set EMPIRE_AUTH_TOKEN before enabling it."
     }
+    check(AppConfig.maxRunCostUsdIsValid) {
+        "EMPIRE_MAX_RUN_COST_USD is set to '${AppConfig.maxRunCostUsdRaw}', which isn't a positive number; " +
+            "unset it for no cap, or set it to e.g. \"2.00\"."
+    }
     val host = if (AppConfig.bindAllInterfaces) "0.0.0.0" else "127.0.0.1"
     embeddedServer(Netty, port = 8765, host = host, module = Application::module).start(wait = true)
 }
@@ -75,17 +81,24 @@ fun Application.module() {
     val leadRepository = LeadRepository()
     val revenueRepository = RevenueRepository()
 
-    val llm: LlmClient = when (AppConfig.llmProvider) {
-        "openai" -> OpenAiClient()
-        else -> AnthropicClient()
+    val (rawLlm, model) = when (AppConfig.llmProvider) {
+        "openai" -> OpenAiClient() to AppConfig.openAiModel
+        else -> AnthropicClient() to AppConfig.anthropicModel
     }
+    val budgetGuard = BudgetGuard(AppConfig.maxRunCostUsd) { spent ->
+        runRepository.currentRunId()?.let { runId ->
+            runRepository.update(runId) { it.copy(spentUsd = spent) }
+        }
+    }
+    val llm: LlmClient = CostTrackingLlmClient(rawLlm, model, budgetGuard)
     val orchestrator = RunOrchestrator(
         runRepository = runRepository,
         researchStage = ResearchStage(llm, nicheRepository, runRepository),
         designStage = DesignStage(llm, runRepository),
         completionStage = CompletionStage(llm, runRepository),
         polishStage = PolishStage(llm, runRepository),
-        shippingStage = ShippingStage(llm, runRepository)
+        shippingStage = ShippingStage(llm, runRepository),
+        budgetGuard = budgetGuard
     )
     orchestrator.resumeIfNeeded()
 
