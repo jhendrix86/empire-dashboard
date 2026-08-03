@@ -3,9 +3,13 @@ package com.empire.server.testutil
 import com.empire.server.llm.LlmClient
 import com.empire.server.llm.Personas
 
-/** Deterministic [LlmClient] test double: reruns [respond] for every call, no network. */
+/**
+ * Deterministic [LlmClient] test double: reruns [respond] for every call, no network.
+ * [respond] is `suspend` so tests can simulate an in-flight call (e.g. via `delay()`) to
+ * exercise cancellation -- Ktor's real HTTP calls are cancellable in the same way.
+ */
 class FakeLlmClient(
-    private val respond: (systemPrompt: String, userPrompt: String) -> String = { _, _ -> "ok" }
+    private val respond: suspend (systemPrompt: String, userPrompt: String) -> String = { _, _ -> "ok" }
 ) : LlmClient {
     var callCount: Int = 0
         private set
@@ -22,7 +26,7 @@ class FakeLlmClient(
  * data, and plain placeholder text for the free-text ones -- so a full run driven by
  * this responder reaches [com.empire.server.orchestration.RunStatus.DONE] deterministically.
  */
-fun happyPathResponder(auditPass: Boolean = true): (String, String) -> String = { system, user ->
+fun happyPathResponder(auditPass: Boolean = true): suspend (String, String) -> String = { system, user ->
     when {
         system == Personas.MARKET_TREND_ANALYST && "Identify one promising" in user ->
             """{"Niche":"Test niche","SubNiche":"Test sub-niche","Audience":"Testers",

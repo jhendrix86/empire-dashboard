@@ -133,4 +133,38 @@ class RunOrchestratorTest {
         assertEquals(RunStatus.ERROR, afterResume.status)
         assertTrue(afterResume.error.orEmpty().contains("budget"))
     }
+
+    @Test
+    fun `cancelRun stops an in-flight run and marks it cancelled`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        // Never resolves on its own -- only cancellation ends it, so a passing test proves
+        // cancelRun() actually interrupted the in-flight "LLM call" rather than the run
+        // just finishing naturally in the meantime.
+        val llm = FakeLlmClient { _, _ ->
+            delay(60_000)
+            error("should have been cancelled before this resolved")
+        }
+        val orchestrator = newOrchestrator(llm, runRepository)
+
+        val response = orchestrator.startRun(RunRequest())
+        assertTrue(response.started)
+        delay(100) // let the background coroutine actually enter the delay
+
+        val cancelResult = orchestrator.cancelRun()
+        assertTrue(cancelResult.cancelled)
+
+        val manifest = awaitTerminal(runRepository, response.runId)
+        assertEquals(RunStatus.CANCELLED, manifest.status)
+    }
+
+    @Test
+    fun `cancelRun is a no-op when nothing is running`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        val orchestrator = newOrchestrator(FakeLlmClient(), runRepository)
+
+        val result = orchestrator.cancelRun()
+
+        assertFalse(result.cancelled)
+        assertEquals("no run in progress", result.error)
+    }
 }
