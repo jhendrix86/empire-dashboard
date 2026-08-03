@@ -73,6 +73,10 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765", authToken
         }.body<RunProgress>()
     }
 
+    suspend fun cancelPipeline(): Result<RunCancelResponse> = runCatching {
+        client.post("$baseUrl/run/cancel").body<RunCancelResponse>()
+    }
+
     suspend fun addCustomer(
         email: String,
         name: String? = null,

@@ -54,6 +54,12 @@ data class RunStartResponse(
 )
 
 @Serializable
+data class RunCancelResponse(
+    val cancelled: Boolean = false,
+    val error: String? = null
+)
+
+@Serializable
 data class PipelineStep(
     val name: String = "",
     val status: String = "",

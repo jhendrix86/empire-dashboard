@@ -16,6 +16,11 @@ fun Route.pipelineRoutes(orchestrator: RunOrchestrator) {
         call.respond(orchestrator.startRun(body))
     }
 
+    post("/run/cancel") {
+        if (!requireToken(call)) return@post
+        call.respond(orchestrator.cancelRun())
+    }
+
     get("/run-progress") {
         val cursor = call.request.queryParameters["cursor"]?.toIntOrNull() ?: 0
         call.respond(orchestrator.getProgress(cursor))

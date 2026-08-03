@@ -63,8 +63,13 @@ App(serverUrl = "http://192.168.1.X:8765", authToken = "some-long-random-string"
 ```
 
 Read-only endpoints (status, niches, customers/leads/revenue lists) don't require
-the token; mutating ones (`/run`, adding a customer/lead, recording a sale/refund)
-do, whenever `EMPIRE_BIND_ALL` is set.
+the token; mutating ones (`/run`, `/run/cancel`, adding a customer/lead, recording a
+sale/refund) do, whenever `EMPIRE_BIND_ALL` is set.
+
+A run in progress can be stopped from the Progress screen's "STOP RUN" button (or by
+calling `POST /run/cancel` directly). Cancellation is cooperative -- it interrupts the
+run at its next LLM call rather than mid-write, so the manifest is left consistent and
+marked `cancelled`.
 
 ## Step 2 — Run the desktop app instantly
 

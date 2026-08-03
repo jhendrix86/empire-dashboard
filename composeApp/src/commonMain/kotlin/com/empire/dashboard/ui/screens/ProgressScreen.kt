@@ -20,14 +20,17 @@ import com.empire.dashboard.ui.theme.EmpireGreen
 import com.empire.dashboard.ui.theme.EmpireRed
 import com.empire.dashboard.ui.theme.EmpireSurface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? = null) {
     val api = remember { EmpireApi(apiUrl, authToken) }
+    val coroutineScope = rememberCoroutineScope()
     var progress by remember { mutableStateOf<RunProgress?>(null) }
     var isPolling by remember { mutableStateOf(true) }
     var logTail by remember { mutableStateOf<List<String>>(emptyList()) }
     var logCursor by remember { mutableStateOf(0) }
+    var isCancelling by remember { mutableStateOf(false) }
 
     LaunchedEffect(isPolling) {
         while (isPolling) {
@@ -35,14 +38,14 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
                 progress = p
                 logTail = (logTail + p.newLogLines).takeLast(15)
                 logCursor = p.logCursor
-                if (p.status == "done" || p.status == "error") {
+                if (p.status != "running") {
                     isPolling = false
                 }
             }
             delay(1500)
         }
     }
-    
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -82,6 +85,7 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
                                     "running" -> EmpireGreen
                                     "done" -> EmpireGreen
                                     "error" -> EmpireRed
+                                    "cancelled" -> EmpireGold
                                     else -> Color.White.copy(0.6f)
                                 },
                                 fontWeight = FontWeight.Bold,
@@ -96,6 +100,19 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
                             color = EmpireGold,
                             trackColor = Color.White.copy(0.1f)
                         )
+                        if (p.status == "running") {
+                            OutlinedButton(
+                                onClick = {
+                                    isCancelling = true
+                                    coroutineScope.launch { api.cancelPipeline() }
+                                },
+                                enabled = !isCancelling,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = EmpireRed)
+                            ) {
+                                Text(if (isCancelling) "STOPPING…" else "⏹ STOP RUN", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                        }
                     }
                 }
             }

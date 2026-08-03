@@ -20,6 +20,7 @@ object RunStatus {
     const val RUNNING = "running"
     const val DONE = "done"
     const val ERROR = "error"
+    const val CANCELLED = "cancelled"
 }
 
 /** Server-internal status: distinguishes a genuine failure from the retry-bound safety valve. */

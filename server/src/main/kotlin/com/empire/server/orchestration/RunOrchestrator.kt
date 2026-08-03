@@ -1,5 +1,6 @@
 package com.empire.server.orchestration
 
+import com.empire.dashboard.data.RunCancelResponse
 import com.empire.dashboard.data.RunProgress
 import com.empire.dashboard.data.RunRequest
 import com.empire.dashboard.data.RunStartResponse
@@ -12,8 +13,10 @@ import com.empire.server.orchestration.stages.ShippingStage
 import com.empire.server.storage.RunRepository
 import com.empire.server.util.newRunId
 import java.time.Instant
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -31,6 +34,10 @@ class RunOrchestrator(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
 
+    // Only one run's stage work is ever in flight (startRun/resumeIfNeeded enforce that),
+    // so a single job reference is enough to support cancelRun() -- no per-run keying needed.
+    @Volatile private var currentJob: Job? = null
+
     suspend fun startRun(request: RunRequest): RunStartResponse = startLock.withLock {
         val current = runRepository.currentManifest()
         if (current != null && current.status == RunStatus.RUNNING) {
@@ -44,9 +51,25 @@ class RunOrchestrator(
         budgetGuard.reset()
         log(runId, "[info] run $runId started")
 
-        scope.launch { executeStages(runId, Stage.RESEARCH) }
+        currentJob = scope.launch { executeStages(runId, Stage.RESEARCH) }
 
         RunStartResponse(started = true, runId = runId)
+    }
+
+    /**
+     * Requests the currently running pipeline stop. Cancellation is cooperative: it
+     * interrupts the run at its next suspension point (typically an in-flight LLM call),
+     * rather than killing anything mid-write, so the manifest is left in a consistent state.
+     */
+    fun cancelRun(): RunCancelResponse {
+        val manifest = runRepository.currentManifest()
+            ?: return RunCancelResponse(cancelled = false, error = "no run in progress")
+        if (manifest.status != RunStatus.RUNNING) {
+            return RunCancelResponse(cancelled = false, error = "no run in progress")
+        }
+        val job = currentJob ?: return RunCancelResponse(cancelled = false, error = "no run in progress")
+        job.cancel()
+        return RunCancelResponse(cancelled = true)
     }
 
     /**
@@ -82,25 +105,29 @@ class RunOrchestrator(
         budgetGuard.seed(manifest.spentUsd)
         val resumeStage = Stage.entries.firstOrNull { it.slug == manifest.currentStage } ?: Stage.RESEARCH
         log(manifest.runId, "[warn] resuming run ${manifest.runId} from ${resumeStage.slug} after restart")
-        scope.launch { executeStages(manifest.runId, resumeStage) }
+        currentJob = scope.launch { executeStages(manifest.runId, resumeStage) }
     }
 
     private suspend fun executeStages(runId: String, startStage: Stage) {
         var stage: Stage? = startStage
-        while (stage != null) {
-            when (val outcome = runStage(runId, stage)) {
-                is StageOutcome.Continue -> stage = stage.next()
-                is StageOutcome.RetryFrom -> {
-                    log(runId, "[warn] retrying from ${outcome.stage.slug}: ${outcome.reason}")
-                    stage = outcome.stage
-                }
-                is StageOutcome.Fatal -> {
-                    markError(runId, outcome.reason)
-                    return
+        try {
+            while (stage != null) {
+                when (val outcome = runStage(runId, stage)) {
+                    is StageOutcome.Continue -> stage = stage.next()
+                    is StageOutcome.RetryFrom -> {
+                        log(runId, "[warn] retrying from ${outcome.stage.slug}: ${outcome.reason}")
+                        stage = outcome.stage
+                    }
+                    is StageOutcome.Fatal -> {
+                        markError(runId, outcome.reason)
+                        return
+                    }
                 }
             }
+            markDone(runId)
+        } catch (e: CancellationException) {
+            markCancelled(runId)
         }
-        markDone(runId)
     }
 
     private suspend fun runStage(runId: String, stage: Stage): StageOutcome {
@@ -118,6 +145,8 @@ class RunOrchestrator(
                 Stage.POLISH_AUDIT -> polishStage.run(runId, manifest)
                 Stage.SHIPPING -> shippingStage.run(runId, manifest)
             }
+        } catch (e: CancellationException) {
+            throw e // let executeStages' catch record this as cancelled, not a stage failure
         } catch (e: Exception) {
             log(runId, "[error] ${stage.slug} failed: ${e.message}")
             updateStep(runId, stage, status = "error", detail = e.message ?: "failed")
@@ -162,6 +191,14 @@ class RunOrchestrator(
             manifest.copy(status = RunStatus.ERROR, error = reason)
         }
         log(runId, "[error] $reason")
+        log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
+    }
+
+    private fun markCancelled(runId: String) {
+        runRepository.update(runId) { manifest ->
+            manifest.copy(status = RunStatus.CANCELLED, error = "cancelled by operator")
+        }
+        log(runId, "[warn] run $runId cancelled by operator")
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
     }
 
