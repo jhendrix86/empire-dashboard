@@ -44,6 +44,20 @@ clear "exceeded its $X.XX LLM budget" error instead of continuing to spend. Unse
 default) means unlimited. Estimated spend for each run is written to that run's log
 either way, whether it finished or errored.
 
+### Optional: get notified on a sale or a failed run
+
+To hear about these without having the app open, point an outbound webhook at any
+endpoint that accepts a JSON POST -- a Slack/Discord incoming webhook, ntfy.sh, etc.:
+
+```powershell
+$env:EMPIRE_NOTIFY_WEBHOOK_URL = "https://hooks.slack.com/services/..."
+```
+
+Each notification is `{"event": "...", "text": "..."}`, sent for a recorded sale
+(`sale_recorded`) and a run that ends in error (`run_failed`) -- including a run that
+hit the spend cap above. Unset (the default) sends nothing; a delivery failure is
+logged but never breaks the sale/run that triggered it.
+
 ### Optional: LAN access (for the Android app)
 
 By default the server only listens on loopback, so nothing outside this machine can

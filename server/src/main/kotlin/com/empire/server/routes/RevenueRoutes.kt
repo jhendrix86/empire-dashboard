@@ -1,6 +1,7 @@
 package com.empire.server.routes
 
 import com.empire.dashboard.data.RevenueMutationRequest
+import com.empire.server.notify.Notifier
 import com.empire.server.storage.RevenueRepository
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
@@ -11,14 +12,16 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.revenueRoutes(repository: RevenueRepository) {
+fun Route.revenueRoutes(repository: RevenueRepository, notifier: Notifier) {
     get("/revenue") {
         call.respond(repository.all())
     }
     post("/revenue/sale") {
         if (!requireToken(call)) return@post
         val body = call.receive<RevenueMutationRequest>()
-        repository.recordSale(body.amount, body.email, body.note)
+        val entry = repository.recordSale(body.amount, body.email, body.note)
+        val who = entry.email.takeIf { it.isNotBlank() }?.let { " from $it" }.orEmpty()
+        notifier.notify("sale_recorded", "💰 Sale recorded: \$%.2f%s".format(entry.amount, who))
         call.respondText(text = "\"ok\"", contentType = ContentType.Application.Json)
     }
     post("/revenue/refund") {

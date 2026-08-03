@@ -31,6 +31,9 @@ object AppConfig {
     /** Required whenever [bindAllInterfaces] is true; checked on every mutating route. */
     val authToken: String? by lazy { env("EMPIRE_AUTH_TOKEN") }
 
+    /** Optional outbound webhook (Slack/Discord/ntfy/etc.) notified on a sale or a failed run. */
+    val notifyWebhookUrl: String? by lazy { env("EMPIRE_NOTIFY_WEBHOOK_URL")?.trim()?.takeIf { it.isNotEmpty() } }
+
     fun env(key: String): String? = System.getenv(key) ?: dotEnv[key]
 
     private val dotEnv: Map<String, String> by lazy {

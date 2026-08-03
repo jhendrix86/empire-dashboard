@@ -6,6 +6,8 @@ import com.empire.server.llm.BudgetGuard
 import com.empire.server.llm.CostTrackingLlmClient
 import com.empire.server.llm.LlmClient
 import com.empire.server.llm.OpenAiClient
+import com.empire.server.notify.Notifier
+import com.empire.server.notify.WebhookNotifier
 import com.empire.server.orchestration.RunOrchestrator
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
@@ -91,6 +93,7 @@ fun Application.module() {
         }
     }
     val llm: LlmClient = CostTrackingLlmClient(rawLlm, model, budgetGuard)
+    val notifier: Notifier = WebhookNotifier()
     val orchestrator = RunOrchestrator(
         runRepository = runRepository,
         researchStage = ResearchStage(llm, nicheRepository, runRepository),
@@ -98,7 +101,8 @@ fun Application.module() {
         completionStage = CompletionStage(llm, runRepository),
         polishStage = PolishStage(llm, runRepository),
         shippingStage = ShippingStage(llm, runRepository),
-        budgetGuard = budgetGuard
+        budgetGuard = budgetGuard,
+        notifier = notifier
     )
     orchestrator.resumeIfNeeded()
 
@@ -109,7 +113,7 @@ fun Application.module() {
         statusRoutes(runRepository, nicheRepository)
         customerRoutes(customerRepository)
         leadRoutes(leadRepository)
-        revenueRoutes(revenueRepository)
+        revenueRoutes(revenueRepository, notifier)
         pipelineRoutes(orchestrator)
     }
 }
