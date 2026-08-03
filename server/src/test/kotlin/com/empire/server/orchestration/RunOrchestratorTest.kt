@@ -61,6 +61,20 @@ class RunOrchestratorTest {
         error("run $runId did not reach a terminal state within ${timeoutSeconds}s")
     }
 
+    /**
+     * markError/markCancelled/markDone persist the manifest's terminal status *before*
+     * notifying, so a manifest observed as terminal doesn't guarantee the notification (the
+     * last step in those functions) has landed yet -- poll for it instead of asserting
+     * immediately after [awaitTerminal].
+     */
+    private suspend fun awaitNotification(notifier: FakeNotifier, timeoutSeconds: Int = 10) {
+        repeat(timeoutSeconds * 20) {
+            if (notifier.sent.isNotEmpty()) return
+            delay(50)
+        }
+        error("no notification sent within ${timeoutSeconds}s")
+    }
+
     @Test
     fun `startRun rejects a second run while one is already in progress`() = runBlocking {
         val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
@@ -182,6 +196,7 @@ class RunOrchestratorTest {
 
         val response = orchestrator.startRun(RunRequest())
         awaitTerminal(runRepository, response.runId)
+        awaitNotification(notifier)
 
         assertEquals(1, notifier.sent.size)
         assertEquals("run_failed", notifier.sent.single().event)
