@@ -15,6 +15,7 @@ import com.empire.dashboard.data.EmpireApi
 import com.empire.dashboard.data.RunProgress
 import com.empire.dashboard.ui.components.EmpireCard
 import com.empire.dashboard.ui.components.SectionHeader
+import com.empire.dashboard.ui.components.formatDuration
 import com.empire.dashboard.ui.theme.EmpireGold
 import com.empire.dashboard.ui.theme.EmpireGreen
 import com.empire.dashboard.ui.theme.EmpireRed
@@ -100,6 +101,11 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
                             color = EmpireGold,
                             trackColor = Color.White.copy(0.1f)
                         )
+                        Text(
+                            text = "Est. spend so far: $%.2f".format(p.spentUsd),
+                            color = Color.White.copy(0.5f),
+                            fontSize = 11.sp
+                        )
                         if (p.status == "running") {
                             OutlinedButton(
                                 onClick = {
@@ -125,7 +131,8 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
                             StepBadge(
                                 name = step.name,
                                 status = step.status,
-                                detail = step.detail
+                                detail = step.detail,
+                                durationSeconds = step.durationSeconds
                             )
                         }
                     }
@@ -186,7 +193,7 @@ fun ProgressScreen(apiUrl: String = "http://localhost:8765", authToken: String? 
 }
 
 @Composable
-private fun StepBadge(name: String, status: String, detail: String) {
+private fun StepBadge(name: String, status: String, detail: String, durationSeconds: Double?) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -219,7 +226,7 @@ private fun StepBadge(name: String, status: String, detail: String) {
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
         )
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name.replace("-", " ").uppercase(),
                 color = Color.White,
@@ -230,6 +237,14 @@ private fun StepBadge(name: String, status: String, detail: String) {
                 text = detail,
                 color = Color.White.copy(0.6f),
                 fontSize = 11.sp
+            )
+        }
+        if (durationSeconds != null) {
+            Text(
+                text = formatDuration(durationSeconds),
+                color = Color.White.copy(0.5f),
+                fontSize = 11.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
             )
         }
     }

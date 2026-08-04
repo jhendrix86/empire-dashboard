@@ -14,8 +14,10 @@ import androidx.compose.ui.unit.sp
 import com.empire.dashboard.data.RunEntry
 import com.empire.dashboard.ui.components.EmpireCard
 import com.empire.dashboard.ui.components.SectionHeader
+import com.empire.dashboard.ui.components.formatDuration
 import com.empire.dashboard.ui.theme.EmpireGold
 import com.empire.dashboard.ui.theme.EmpireGreen
+import com.empire.dashboard.ui.theme.EmpireRed
 
 @Composable
 fun RunHistoryScreen(pipelines: List<RunEntry>, bundles: List<RunEntry>) {
@@ -49,21 +51,49 @@ fun RunHistoryScreen(pipelines: List<RunEntry>, bundles: List<RunEntry>) {
                         fontSize = 13.sp,
                         fontWeight = if (index == 0) FontWeight.Bold else FontWeight.Normal
                     )
-                    if (index == 0) {
-                        Text(
-                            text = "LATEST",
-                            color = EmpireGreen,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (index == 0) {
+                            Text(
+                                text = "LATEST",
+                                color = EmpireGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
+                        if (run.status.isNotBlank()) {
+                            Text(
+                                text = run.status.uppercase(),
+                                color = when (run.status) {
+                                    "done" -> EmpireGreen
+                                    "error" -> EmpireRed
+                                    "cancelled" -> EmpireGold
+                                    else -> Color.White.copy(0.5f)
+                                },
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.sp
+                            )
+                        }
                     }
                 }
-                Text(
-                    text = run.date.take(19).replace("T", "  "),
-                    color = Color.White.copy(0.4f),
-                    fontSize = 11.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = run.date.take(19).replace("T", "  "),
+                        color = Color.White.copy(0.4f),
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = "\$%.2f".format(run.spentUsd) +
+                            (run.durationSeconds?.let { " · ${formatDuration(it)}" } ?: ""),
+                        color = Color.White.copy(0.4f),
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
 

@@ -31,7 +31,9 @@ fun Route.statusRoutes(runRepository: RunRepository, nicheRepository: NicheRepos
             selectedNiche = latest?.niche,
             topNiches = nicheRepository.all().sortedByDescending { it.score },
             bundle = latest?.bundle,
-            recentPipelines = recentRuns.map { RunEntry(runId = it.runId, date = it.createdAt) },
+            recentPipelines = recentRuns.map {
+                RunEntry(runId = it.runId, date = it.createdAt, status = it.status, spentUsd = it.spentUsd, durationSeconds = it.durationSeconds)
+            },
             recentBundles = recentRuns.mapNotNull { run ->
                 run.bundle?.let { bundle -> RunEntry(runId = run.runId, date = bundle.generatedAt) }
             }
@@ -44,6 +46,10 @@ fun Route.statusRoutes(runRepository: RunRepository, nicheRepository: NicheRepos
     }
 
     get("/runs") {
-        call.respond(runRepository.recentRuns().map { RunEntry(runId = it.runId, date = it.createdAt) })
+        call.respond(
+            runRepository.recentRuns().map {
+                RunEntry(runId = it.runId, date = it.createdAt, status = it.status, spentUsd = it.spentUsd, durationSeconds = it.durationSeconds)
+            }
+        )
     }
 }

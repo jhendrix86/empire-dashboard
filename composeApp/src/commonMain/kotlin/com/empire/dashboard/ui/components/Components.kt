@@ -15,6 +15,13 @@ import androidx.compose.ui.unit.sp
 import com.empire.dashboard.ui.theme.EmpireCard
 import com.empire.dashboard.ui.theme.EmpireGold
 
+/** e.g. 45.2 -> "45.2s", 125.0 -> "2m 5s". */
+fun formatDuration(seconds: Double): String {
+    val totalSeconds = seconds.toInt()
+    val minutes = totalSeconds / 60
+    return if (minutes > 0) "${minutes}m ${totalSeconds % 60}s" else "%.1fs".format(seconds)
+}
+
 @Composable
 fun EmpireCard(
     modifier: Modifier = Modifier,
