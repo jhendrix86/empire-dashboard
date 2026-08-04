@@ -14,14 +14,17 @@ import java.security.MessageDigest
  * 401 and returns false. Callers must `return@post` immediately when this is false.
  */
 suspend fun requireToken(call: ApplicationCall): Boolean {
-    if (!AppConfig.bindAllInterfaces) return true
-
-    val provided = call.request.header("X-Empire-Token")
-    val expected = AppConfig.authToken
-    if (provided != null && expected != null && constantTimeEquals(provided, expected)) return true
+    if (isAuthorized(AppConfig.bindAllInterfaces, call.request.header("X-Empire-Token"), AppConfig.authToken)) return true
 
     call.respondText("unauthorized", status = HttpStatusCode.Unauthorized)
     return false
+}
+
+/** The actual authorization decision, pulled out of [requireToken] so it's testable without
+ *  a Ktor test host or reaching into AppConfig's process-wide, env-var-backed singleton state. */
+fun isAuthorized(bindAllInterfaces: Boolean, providedToken: String?, expectedToken: String?): Boolean {
+    if (!bindAllInterfaces) return true
+    return providedToken != null && expectedToken != null && constantTimeEquals(providedToken, expectedToken)
 }
 
 /** Avoids leaking how many leading characters matched via response-time differences. */
