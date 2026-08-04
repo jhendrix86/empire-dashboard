@@ -103,6 +103,20 @@ class RunOrchestratorTest {
     }
 
     @Test
+    fun `a completed run records a duration for every step and for the run overall`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        val orchestrator = newOrchestrator(FakeLlmClient(happyPathResponder()), runRepository)
+
+        val response = orchestrator.startRun(RunRequest())
+        val manifest = awaitTerminal(runRepository, response.runId)
+
+        assertEquals(RunStatus.DONE, manifest.status)
+        assertTrue((manifest.durationSeconds ?: -1.0) >= 0.0)
+        assertTrue(manifest.steps.all { (it.durationSeconds ?: -1.0) >= 0.0 })
+        assertTrue(manifest.steps.all { it.startedAt != null })
+    }
+
+    @Test
     fun `a run aborts once it crosses its LLM budget cap`() = runBlocking {
         val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
         val guard = BudgetGuard(maxCostUsd = 0.000001)
@@ -116,6 +130,7 @@ class RunOrchestratorTest {
 
         assertEquals(RunStatus.ERROR, manifest.status)
         assertTrue(manifest.error.orEmpty().contains("budget"))
+        assertTrue((manifest.durationSeconds ?: -1.0) >= 0.0)
     }
 
     @Test

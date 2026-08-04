@@ -44,7 +44,9 @@ data class RunManifest(
     val error: String? = null,
     // Mirrors BudgetGuard's running total so a server restart mid-run can rehydrate the
     // cap accumulator (see RunOrchestrator.resumeIfNeeded) instead of granting a fresh budget.
-    val spentUsd: Double = 0.0
+    val spentUsd: Double = 0.0,
+    // Set once the run reaches a terminal status; null while running.
+    val durationSeconds: Double? = null
 ) {
     val progressPct: Double
         get() = steps.count { it.status == "done" } * 100.0 / steps.size

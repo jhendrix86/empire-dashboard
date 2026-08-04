@@ -13,6 +13,7 @@ import com.empire.server.orchestration.stages.ResearchStage
 import com.empire.server.orchestration.stages.ShippingStage
 import com.empire.server.storage.RunRepository
 import com.empire.server.util.newRunId
+import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -94,6 +95,7 @@ class RunOrchestrator(
             newLogLines = newLines,
             runId = manifest.runId,
             error = manifest.error,
+            spentUsd = manifest.spentUsd,
             logCursor = newCursor
         )
     }
@@ -172,9 +174,20 @@ class RunOrchestrator(
     }
 
     private fun updateStep(runId: String, stage: Stage, status: String, detail: String) {
+        val now = Instant.now()
         runRepository.update(runId) { manifest ->
             val updatedSteps = manifest.steps.map { step ->
-                if (step.name == stage.slug) step.copy(status = status, detail = detail) else step
+                if (step.name != stage.slug) return@map step
+                when (status) {
+                    // A fresh attempt (including a retry) starts its own clock.
+                    "running" -> step.copy(status = status, detail = detail, startedAt = now.toString(), durationSeconds = null)
+                    "done", "error" -> step.copy(
+                        status = status,
+                        detail = detail,
+                        durationSeconds = step.startedAt?.let { elapsedSeconds(it, now) }
+                    )
+                    else -> step.copy(status = status, detail = detail)
+                }
             }
             manifest.copy(currentStage = stage.slug, steps = updatedSteps)
         }
@@ -182,7 +195,11 @@ class RunOrchestrator(
 
     private fun markDone(runId: String) {
         runRepository.update(runId) { manifest ->
-            manifest.copy(status = RunStatus.DONE, internalStatus = InternalStatus.DONE)
+            manifest.copy(
+                status = RunStatus.DONE,
+                internalStatus = InternalStatus.DONE,
+                durationSeconds = elapsedSeconds(manifest.createdAt, Instant.now())
+            )
         }
         log(runId, "[done] run $runId complete")
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
@@ -190,7 +207,7 @@ class RunOrchestrator(
 
     private suspend fun markError(runId: String, reason: String) {
         runRepository.update(runId) { manifest ->
-            manifest.copy(status = RunStatus.ERROR, error = reason)
+            manifest.copy(status = RunStatus.ERROR, error = reason, durationSeconds = elapsedSeconds(manifest.createdAt, Instant.now()))
         }
         log(runId, "[error] $reason")
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
@@ -199,11 +216,18 @@ class RunOrchestrator(
 
     private fun markCancelled(runId: String) {
         runRepository.update(runId) { manifest ->
-            manifest.copy(status = RunStatus.CANCELLED, error = "cancelled by operator")
+            manifest.copy(
+                status = RunStatus.CANCELLED,
+                error = "cancelled by operator",
+                durationSeconds = elapsedSeconds(manifest.createdAt, Instant.now())
+            )
         }
         log(runId, "[warn] run $runId cancelled by operator")
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
     }
+
+    private fun elapsedSeconds(sinceIso: String, until: Instant): Double =
+        runCatching { Duration.between(Instant.parse(sinceIso), until).toMillis() / 1000.0 }.getOrDefault(0.0)
 
     private fun log(runId: String, line: String) {
         runRepository.appendLog(runId, line)

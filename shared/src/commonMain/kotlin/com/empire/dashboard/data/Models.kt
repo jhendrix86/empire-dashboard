@@ -30,7 +30,10 @@ data class BundleInfo(
 @Serializable
 data class RunEntry(
     val runId: String = "",
-    val date: String = ""
+    val date: String = "",
+    val status: String = "",
+    val spentUsd: Double = 0.0,
+    val durationSeconds: Double? = null
 )
 
 @Serializable
@@ -63,7 +66,11 @@ data class RunCancelResponse(
 data class PipelineStep(
     val name: String = "",
     val status: String = "",
-    val detail: String = ""
+    val detail: String = "",
+    val startedAt: String? = null,
+    // Set once the step reaches "done"/"error" -- null while pending or running so the
+    // client never has to compute a live-updating elapsed time itself.
+    val durationSeconds: Double? = null
 )
 
 @Serializable
@@ -74,6 +81,7 @@ data class RunProgress(
     val newLogLines: List<String> = emptyList(),
     val runId: String? = null,
     val error: String? = null,
+    val spentUsd: Double = 0.0,
     // Echo this back as the `cursor` query param on the next call to pick up
     // exactly where this response left off -- delivery is then per-client and
     // safe to retry, instead of a single server-side position every poller shares.

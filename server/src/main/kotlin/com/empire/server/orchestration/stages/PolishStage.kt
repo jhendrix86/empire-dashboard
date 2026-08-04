@@ -112,7 +112,7 @@ class PolishStage(
         val resetSteps = manifest.steps.map { step ->
             val stepStage = Stage.entries.firstOrNull { it.slug == step.name }
             if (stepStage != null && stepStage.ordinal >= fromStage.ordinal) {
-                step.copy(status = "pending", detail = "")
+                step.copy(status = "pending", detail = "", startedAt = null, durationSeconds = null)
             } else {
                 step
             }
