@@ -5,6 +5,7 @@ import com.empire.dashboard.data.RunProgress
 import com.empire.dashboard.data.RunRequest
 import com.empire.dashboard.data.RunStartResponse
 import com.empire.server.llm.BudgetGuard
+import com.empire.server.notify.Notifier
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
 import com.empire.server.orchestration.stages.PolishStage
@@ -29,7 +30,8 @@ class RunOrchestrator(
     private val completionStage: CompletionStage,
     private val polishStage: PolishStage,
     private val shippingStage: ShippingStage,
-    private val budgetGuard: BudgetGuard
+    private val budgetGuard: BudgetGuard,
+    private val notifier: Notifier
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val startLock = Mutex()
@@ -186,12 +188,13 @@ class RunOrchestrator(
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
     }
 
-    private fun markError(runId: String, reason: String) {
+    private suspend fun markError(runId: String, reason: String) {
         runRepository.update(runId) { manifest ->
             manifest.copy(status = RunStatus.ERROR, error = reason)
         }
         log(runId, "[error] $reason")
         log(runId, "[info] estimated LLM spend for this run: $%.2f".format(budgetGuard.spent()))
+        notifier.notify("run_failed", "Pipeline run $runId failed: $reason")
     }
 
     private fun markCancelled(runId: String) {

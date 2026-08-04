@@ -4,6 +4,7 @@ import com.empire.dashboard.data.RunRequest
 import com.empire.server.llm.BudgetGuard
 import com.empire.server.llm.CostTrackingLlmClient
 import com.empire.server.llm.LlmClient
+import com.empire.server.notify.Notifier
 import com.empire.server.orchestration.stages.CompletionStage
 import com.empire.server.orchestration.stages.DesignStage
 import com.empire.server.orchestration.stages.PolishStage
@@ -12,6 +13,7 @@ import com.empire.server.orchestration.stages.ShippingStage
 import com.empire.server.storage.NicheRepository
 import com.empire.server.storage.RunRepository
 import com.empire.server.testutil.FakeLlmClient
+import com.empire.server.testutil.FakeNotifier
 import com.empire.server.testutil.happyPathResponder
 import java.nio.file.Files
 import kotlinx.coroutines.delay
@@ -34,7 +36,8 @@ class RunOrchestratorTest {
     private fun newOrchestrator(
         llm: LlmClient,
         runRepository: RunRepository,
-        budgetGuard: BudgetGuard = BudgetGuard(maxCostUsd = null)
+        budgetGuard: BudgetGuard = BudgetGuard(maxCostUsd = null),
+        notifier: Notifier = FakeNotifier()
     ): RunOrchestrator {
         val nicheRepository = NicheRepository(Files.createTempDirectory("empire-test").toFile())
         return RunOrchestrator(
@@ -44,7 +47,8 @@ class RunOrchestratorTest {
             completionStage = CompletionStage(llm, runRepository),
             polishStage = PolishStage(llm, runRepository),
             shippingStage = ShippingStage(llm, runRepository),
-            budgetGuard = budgetGuard
+            budgetGuard = budgetGuard,
+            notifier = notifier
         )
     }
 
@@ -55,6 +59,20 @@ class RunOrchestratorTest {
             delay(50)
         }
         error("run $runId did not reach a terminal state within ${timeoutSeconds}s")
+    }
+
+    /**
+     * markError/markCancelled/markDone persist the manifest's terminal status *before*
+     * notifying, so a manifest observed as terminal doesn't guarantee the notification (the
+     * last step in those functions) has landed yet -- poll for it instead of asserting
+     * immediately after [awaitTerminal].
+     */
+    private suspend fun awaitNotification(notifier: FakeNotifier, timeoutSeconds: Int = 10) {
+        repeat(timeoutSeconds * 20) {
+            if (notifier.sent.isNotEmpty()) return
+            delay(50)
+        }
+        error("no notification sent within ${timeoutSeconds}s")
     }
 
     @Test
@@ -166,5 +184,34 @@ class RunOrchestratorTest {
 
         assertFalse(result.cancelled)
         assertEquals("no run in progress", result.error)
+    }
+
+    @Test
+    fun `a failed run sends a run_failed notification`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        val notifier = FakeNotifier()
+        val guard = BudgetGuard(maxCostUsd = 0.000001)
+        val budgetedLlm = CostTrackingLlmClient(FakeLlmClient(happyPathResponder()), model = "claude-opus-5", guard = guard)
+        val orchestrator = newOrchestrator(budgetedLlm, runRepository, guard, notifier)
+
+        val response = orchestrator.startRun(RunRequest())
+        awaitTerminal(runRepository, response.runId)
+        awaitNotification(notifier)
+
+        assertEquals(1, notifier.sent.size)
+        assertEquals("run_failed", notifier.sent.single().event)
+        assertTrue(notifier.sent.single().message.contains(response.runId))
+    }
+
+    @Test
+    fun `a successful run sends no notification`() = runBlocking {
+        val runRepository = RunRepository(Files.createTempDirectory("empire-test").toFile())
+        val notifier = FakeNotifier()
+        val orchestrator = newOrchestrator(FakeLlmClient(happyPathResponder()), runRepository, notifier = notifier)
+
+        val response = orchestrator.startRun(RunRequest())
+        awaitTerminal(runRepository, response.runId)
+
+        assertTrue(notifier.sent.isEmpty())
     }
 }
