@@ -10,12 +10,15 @@ import com.empire.server.orchestration.artifacts.EnterpriseBlueprint
 import com.empire.server.orchestration.artifacts.ResearchBrief
 import com.empire.server.orchestration.readArtifact
 import com.empire.server.packaging.BundlePackager
+import com.empire.server.shopify.ShopifyAdminClient
+import com.empire.server.shopify.ShopifyClient
 import com.empire.server.storage.RunRepository
 import java.io.File
 
 class ShippingStage(
     private val llm: LlmClient,
-    private val runRepository: RunRepository
+    private val runRepository: RunRepository,
+    private val shopifyClient: ShopifyClient = ShopifyAdminClient()
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {
         val brief = readArtifact(runRepository, runId, "research-brief.json", ResearchBrief.serializer())
@@ -56,8 +59,18 @@ class ShippingStage(
             sourceFiles = sourceFiles
         )
 
-        runRepository.update(runId) { it.copy(bundle = bundleInfo) }
+        val shopifyProductUrl = shopifyClient.createDraftProduct(
+            title = productName,
+            bodyHtml = blueprint.productOutline,
+            priceUsd = parsePriceUsd(blueprint.pricing)
+        )?.adminUrl
 
-        return StageResult(StageOutcome.Continue, detail = "${bundleInfo.copiedFiles.size} files bundled")
+        runRepository.update(runId) { it.copy(bundle = bundleInfo.copy(shopifyProductUrl = shopifyProductUrl)) }
+
+        val shopifyDetail = if (shopifyProductUrl != null) ", Shopify draft listing created" else ""
+        return StageResult(StageOutcome.Continue, detail = "${bundleInfo.copiedFiles.size} files bundled$shopifyDetail")
     }
+
+    private fun parsePriceUsd(pricing: String): Double? =
+        Regex("""\d+(?:\.\d{1,2})?""").find(pricing)?.value?.toDoubleOrNull()
 }
