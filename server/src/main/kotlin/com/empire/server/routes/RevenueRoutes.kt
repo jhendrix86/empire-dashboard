@@ -1,8 +1,10 @@
 package com.empire.server.routes
 
 import com.empire.dashboard.data.RevenueMutationRequest
+import com.empire.dashboard.data.StripeSyncResponse
 import com.empire.server.notify.Notifier
 import com.empire.server.storage.RevenueRepository
+import com.empire.server.stripe.StripeSyncService
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.request.receive
@@ -12,7 +14,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 
-fun Route.revenueRoutes(repository: RevenueRepository, notifier: Notifier) {
+fun Route.revenueRoutes(repository: RevenueRepository, notifier: Notifier, stripeSyncService: StripeSyncService) {
     get("/revenue") {
         call.respond(repository.all())
     }
@@ -29,5 +31,9 @@ fun Route.revenueRoutes(repository: RevenueRepository, notifier: Notifier) {
         val body = call.receive<RevenueMutationRequest>()
         repository.recordRefund(body.amount, body.email, body.note)
         call.respondText(text = "\"ok\"", contentType = ContentType.Application.Json)
+    }
+    post("/revenue/sync-stripe") {
+        if (!requireToken(call)) return@post
+        call.respond(StripeSyncResponse(synced = stripeSyncService.sync()))
     }
 }

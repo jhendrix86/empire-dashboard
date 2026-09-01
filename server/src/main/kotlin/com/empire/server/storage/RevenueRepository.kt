@@ -15,19 +15,24 @@ class RevenueRepository(dataDir: File = AppConfig.dataDir) {
 
     fun all(): RevenueData = store.read()
 
-    fun recordSale(amount: Double, email: String?, note: String?): RevenueEntry =
-        record(type = "sale", amount = amount, email = email, note = note)
+    fun recordSale(amount: Double, email: String?, note: String?, stripeChargeId: String? = null): RevenueEntry =
+        record(type = "sale", amount = amount, email = email, note = note, stripeChargeId = stripeChargeId)
 
     fun recordRefund(amount: Double, email: String?, note: String?): RevenueEntry =
-        record(type = "refund", amount = amount, email = email, note = note)
+        record(type = "refund", amount = amount, email = email, note = note, stripeChargeId = null)
 
-    private fun record(type: String, amount: Double, email: String?, note: String?): RevenueEntry {
+    /** Lets the Stripe sync skip a charge it has already recorded instead of double-counting it. */
+    fun hasStripeCharge(stripeChargeId: String): Boolean =
+        store.read().history.any { it.stripeChargeId == stripeChargeId }
+
+    private fun record(type: String, amount: Double, email: String?, note: String?, stripeChargeId: String?): RevenueEntry {
         val entry = RevenueEntry(
             type = type,
             amount = amount,
             email = email.orEmpty(),
             note = note.orEmpty(),
-            at = Instant.now().toString()
+            at = Instant.now().toString(),
+            stripeChargeId = stripeChargeId
         )
         store.update { current ->
             val history = current.history + entry

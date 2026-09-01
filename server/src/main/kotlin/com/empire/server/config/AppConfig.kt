@@ -34,6 +34,17 @@ object AppConfig {
     /** Optional outbound webhook (Slack/Discord/ntfy/etc.) notified on a sale or a failed run. */
     val notifyWebhookUrl: String? by lazy { env("EMPIRE_NOTIFY_WEBHOOK_URL")?.trim()?.takeIf { it.isNotEmpty() } }
 
+    /** Secret key for a Stripe account to pull real charges from; unset disables Stripe sync entirely. */
+    val stripeSecretKey: String? by lazy { env("STRIPE_SECRET_KEY")?.trim()?.takeIf { it.isNotEmpty() } }
+
+    /** How often to auto-pull new Stripe charges into the revenue ledger, when [stripeSecretKey] is set. */
+    val stripeSyncIntervalMinutes: Long by lazy { env("STRIPE_SYNC_INTERVAL_MINUTES")?.toLongOrNull()?.takeIf { it > 0 } ?: 15L }
+
+    /** Custom-app credentials for a Shopify store to create draft listings on; unset skips Shopify entirely. */
+    val shopifyStoreDomain: String? by lazy { env("SHOPIFY_STORE_DOMAIN")?.trim()?.takeIf { it.isNotEmpty() } }
+    val shopifyAccessToken: String? by lazy { env("SHOPIFY_ACCESS_TOKEN")?.trim()?.takeIf { it.isNotEmpty() } }
+    val shopifyApiVersion: String by lazy { env("SHOPIFY_API_VERSION") ?: "2025-01" }
+
     fun env(key: String): String? = System.getenv(key) ?: dotEnv[key]
 
     private val dotEnv: Map<String, String> by lazy {

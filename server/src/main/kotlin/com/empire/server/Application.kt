@@ -24,6 +24,8 @@ import com.empire.server.storage.LeadRepository
 import com.empire.server.storage.NicheRepository
 import com.empire.server.storage.RevenueRepository
 import com.empire.server.storage.RunRepository
+import com.empire.server.stripe.StripeChargesClient
+import com.empire.server.stripe.StripeSyncService
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -38,6 +40,11 @@ import io.ktor.server.request.uri
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import org.slf4j.event.Level
 
@@ -106,6 +113,16 @@ fun Application.module() {
     )
     orchestrator.resumeIfNeeded()
 
+    val stripeSyncService = StripeSyncService(StripeChargesClient(), revenueRepository, notifier)
+    if (AppConfig.stripeSecretKey != null) {
+        CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
+            while (true) {
+                runCatching { stripeSyncService.sync() }
+                delay(AppConfig.stripeSyncIntervalMinutes * 60_000L)
+            }
+        }
+    }
+
     routing {
         get("/health") {
             call.respondText("OK")
@@ -113,7 +130,7 @@ fun Application.module() {
         statusRoutes(runRepository, nicheRepository)
         customerRoutes(customerRepository)
         leadRoutes(leadRepository)
-        revenueRoutes(revenueRepository, notifier)
+        revenueRoutes(revenueRepository, notifier, stripeSyncService)
         pipelineRoutes(orchestrator)
     }
 }

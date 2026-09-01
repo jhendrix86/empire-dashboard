@@ -112,7 +112,10 @@ data class RevenueEntry(
     val amount: Double = 0.0,
     val email: String = "",
     val note: String = "",
-    val at: String = ""
+    val at: String = "",
+    // Set only for a sale pulled in automatically from Stripe; lets the sync dedupe
+    // against charges it has already recorded instead of double-counting on re-sync.
+    val stripeChargeId: String? = null
 )
 
 @Serializable
@@ -148,4 +151,9 @@ data class RevenueMutationRequest(
     val amount: Double = 0.0,
     val email: String? = null,
     val note: String? = null
+)
+
+@Serializable
+data class StripeSyncResponse(
+    val synced: Int = 0
 )

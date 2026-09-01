@@ -3,6 +3,8 @@ package com.empire.server.storage
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class RevenueRepositoryTest {
     private fun newRepo(): RevenueRepository = RevenueRepository(Files.createTempDirectory("empire-test").toFile())
@@ -56,5 +58,25 @@ class RevenueRepositoryTest {
         val entry = repo.all().history.single()
         assertEquals("", entry.email)
         assertEquals("", entry.note)
+    }
+
+    @Test
+    fun `hasStripeCharge tracks sales recorded with a stripe charge id`() {
+        val repo = newRepo()
+
+        assertFalse(repo.hasStripeCharge("ch_123"))
+        repo.recordSale(amount = 19.99, email = "buyer@example.com", note = null, stripeChargeId = "ch_123")
+
+        assertTrue(repo.hasStripeCharge("ch_123"))
+        assertFalse(repo.hasStripeCharge("ch_456"))
+    }
+
+    @Test
+    fun `a manually recorded sale has no stripe charge id`() {
+        val repo = newRepo()
+
+        repo.recordSale(amount = 19.99, email = "buyer@example.com", note = null)
+
+        assertEquals(null, repo.all().history.single().stripeChargeId)
     }
 }
