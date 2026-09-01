@@ -156,4 +156,8 @@ class EmpireApi(private val baseUrl: String = "http://localhost:8765", authToken
             setBody(payload)
         }.body<String>()
     }
+
+    suspend fun syncStripe(): Result<StripeSyncResponse> = runCatching {
+        client.post("$baseUrl/revenue/sync-stripe").body<StripeSyncResponse>()
+    }
 }

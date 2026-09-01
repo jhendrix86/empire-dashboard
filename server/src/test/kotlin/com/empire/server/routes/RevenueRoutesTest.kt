@@ -1,8 +1,12 @@
 package com.empire.server.routes
 
 import com.empire.dashboard.data.RevenueData
+import com.empire.dashboard.data.StripeSyncResponse
 import com.empire.server.storage.RevenueRepository
+import com.empire.server.stripe.StripeCharge
+import com.empire.server.stripe.StripeSyncService
 import com.empire.server.testutil.FakeNotifier
+import com.empire.server.testutil.FakeStripeClient
 import com.empire.server.testutil.testJson
 import io.ktor.client.request.get
 import io.ktor.client.request.post
@@ -24,11 +28,15 @@ import kotlin.test.assertTrue
 class RevenueRoutesTest {
     private fun newRepo(): RevenueRepository = RevenueRepository(Files.createTempDirectory("empire-test").toFile())
 
+    private fun noopStripeSync(repo: RevenueRepository, notifier: FakeNotifier = FakeNotifier()): StripeSyncService =
+        StripeSyncService(FakeStripeClient(), repo, notifier)
+
     @Test
     fun `GET revenue starts at zero`() = testApplication {
+        val repo = newRepo()
         application {
             install(ContentNegotiation) { json(testJson) }
-            routing { revenueRoutes(newRepo(), FakeNotifier()) }
+            routing { revenueRoutes(repo, FakeNotifier(), noopStripeSync(repo)) }
         }
 
         val response = client.get("/revenue")
@@ -41,10 +49,11 @@ class RevenueRoutesTest {
 
     @Test
     fun `POST revenue-sale records the sale and fires a sale_recorded notification`() = testApplication {
+        val repo = newRepo()
         val notifier = FakeNotifier()
         application {
             install(ContentNegotiation) { json(testJson) }
-            routing { revenueRoutes(newRepo(), notifier) }
+            routing { revenueRoutes(repo, notifier, noopStripeSync(repo)) }
         }
 
         val response = client.post("/revenue/sale") {
@@ -65,10 +74,11 @@ class RevenueRoutesTest {
 
     @Test
     fun `POST revenue-refund records the refund and does not notify`() = testApplication {
+        val repo = newRepo()
         val notifier = FakeNotifier()
         application {
             install(ContentNegotiation) { json(testJson) }
-            routing { revenueRoutes(newRepo(), notifier) }
+            routing { revenueRoutes(repo, notifier, noopStripeSync(repo)) }
         }
 
         val response = client.post("/revenue/refund") {
@@ -83,5 +93,23 @@ class RevenueRoutesTest {
         assertEquals(1, body.refundCount)
 
         assertTrue(notifier.sent.isEmpty())
+    }
+
+    @Test
+    fun `POST revenue-sync-stripe pulls new charges into the ledger`() = testApplication {
+        val repo = newRepo()
+        val charges = listOf(StripeCharge("ch_1", 19.99, "buyer@example.com", "ebook", 1_700_000_000, successful = true))
+        val stripeSync = StripeSyncService(FakeStripeClient(charges), repo, FakeNotifier())
+        application {
+            install(ContentNegotiation) { json(testJson) }
+            routing { revenueRoutes(repo, FakeNotifier(), stripeSync) }
+        }
+
+        val response = client.post("/revenue/sync-stripe")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = testJson.decodeFromString(StripeSyncResponse.serializer(), response.bodyAsText())
+        assertEquals(1, body.synced)
+        assertEquals(1, repo.all().salesCount)
     }
 }

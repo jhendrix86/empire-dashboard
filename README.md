@@ -58,6 +58,23 @@ Each notification is `{"event": "...", "text": "..."}`, sent for a recorded sale
 hit the spend cap above. Unset (the default) sends nothing; a delivery failure is
 logged but never breaks the sale/run that triggered it.
 
+### Optional: pull real sales in from Stripe
+
+Point the server at a Stripe account to have it pull in actual charges as sales,
+instead of (or alongside) recording them by hand:
+
+```powershell
+$env:STRIPE_SECRET_KEY = "sk_live_..."
+```
+
+Every `STRIPE_SYNC_INTERVAL_MINUTES` (default `15`), the server fetches your most
+recent Stripe charges and records any successful one it hasn't seen yet, firing the
+same `sale_recorded` notification a manual sale does. You can also trigger a sync on
+demand with the Revenue screen's "Sync Stripe" button, or `POST /revenue/sync-stripe`
+directly. Unset (the default) does nothing -- no Stripe calls, no background loop.
+Only the most recent ~100 charges are checked per sync, so keep the interval short
+enough that you don't do more than ~100 transactions between syncs.
+
 ### Optional: LAN access (for the Android app)
 
 By default the server only listens on loopback, so nothing outside this machine can

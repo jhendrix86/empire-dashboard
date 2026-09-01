@@ -32,7 +32,9 @@ fun RevenueScreen(apiUrl: String = "http://localhost:8765", authToken: String? =
     var loading by remember { mutableStateOf(true) }
     var showForm by remember { mutableStateOf(false) }
     var formType by remember { mutableStateOf("sale") }
-    
+    var syncing by remember { mutableStateOf(false) }
+    var syncMessage by remember { mutableStateOf("") }
+
     fun reload() {
         scope.launch {
             api.getRevenue().onSuccess { data ->
@@ -129,7 +131,32 @@ fun RevenueScreen(apiUrl: String = "http://localhost:8765", authToken: String? =
                     }
                 }
             }
-            
+
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            syncing = true
+                            syncMessage = ""
+                            scope.launch {
+                                api.syncStripe()
+                                    .onSuccess { syncMessage = "Synced ${it.synced} new sale(s) from Stripe"; reload() }
+                                    .onFailure { syncMessage = "Stripe sync failed: ${it.message}" }
+                                syncing = false
+                            }
+                        },
+                        enabled = !syncing,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = EmpireGold)
+                    ) {
+                        Text(if (syncing) "SYNCING…" else "↻ SYNC STRIPE", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+                    if (syncMessage.isNotEmpty()) {
+                        Text(syncMessage, color = Color.White.copy(0.5f), fontSize = 10.sp)
+                    }
+                }
+            }
+
             if (showForm) {
                 item {
                     TransactionForm(
@@ -161,7 +188,7 @@ fun RevenueScreen(apiUrl: String = "http://localhost:8765", authToken: String? =
                                 ) {
                                     Column {
                                         Text(
-                                            text = entry.type.uppercase(),
+                                            text = entry.type.uppercase() + if (entry.stripeChargeId != null) " · STRIPE" else "",
                                             color = if (entry.type == "sale") EmpireGreen else EmpireRed,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
