@@ -19,6 +19,7 @@ import com.empire.server.routes.leadRoutes
 import com.empire.server.routes.pipelineRoutes
 import com.empire.server.routes.revenueRoutes
 import com.empire.server.routes.statusRoutes
+import com.empire.server.shopify.ShopifyAdminClient
 import com.empire.server.storage.CustomerRepository
 import com.empire.server.storage.LeadRepository
 import com.empire.server.storage.NicheRepository
@@ -107,7 +108,7 @@ fun Application.module() {
         designStage = DesignStage(llm, runRepository),
         completionStage = CompletionStage(llm, runRepository),
         polishStage = PolishStage(llm, runRepository),
-        shippingStage = ShippingStage(llm, runRepository),
+        shippingStage = ShippingStage(llm, runRepository, ShopifyAdminClient()),
         budgetGuard = budgetGuard,
         notifier = notifier
     )

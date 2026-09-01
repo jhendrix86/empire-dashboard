@@ -24,7 +24,10 @@ data class BundleInfo(
     val generatedAt: String = "",
     val checksumSha256: String = "",
     val bundleExists: Boolean = false,
-    val copiedFiles: List<String> = emptyList()
+    val copiedFiles: List<String> = emptyList(),
+    // Admin link to the DRAFT Shopify listing created from this bundle, when Shopify is
+    // configured; null if Shopify is unconfigured or listing creation failed.
+    val shopifyProductUrl: String? = null
 )
 
 @Serializable

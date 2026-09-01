@@ -75,6 +75,25 @@ directly. Unset (the default) does nothing -- no Stripe calls, no background loo
 Only the most recent ~100 charges are checked per sync, so keep the interval short
 enough that you don't do more than ~100 transactions between syncs.
 
+### Optional: create a draft Shopify listing for each product
+
+Point the server at a Shopify store to have the Shipping stage create a listing for
+every product it ships, so it's ready for you to review instead of manually re-typing
+the title, description, and price:
+
+```powershell
+$env:SHOPIFY_STORE_DOMAIN = "your-store.myshopify.com"
+$env:SHOPIFY_ACCESS_TOKEN = "shpat_..."
+```
+
+The listing is always created with `status: draft` -- it is never active/live, so
+nothing is actually for sale until you review it in Shopify admin and publish it
+yourself. The product's title comes from the niche, the description from the
+blueprint's product outline, and the price is parsed from the blueprint's pricing
+text. A link to the draft appears on the Dashboard's Product Bundle card once created.
+Unset (the default) skips Shopify entirely -- no calls, no listing. Override the API
+version with `SHOPIFY_API_VERSION` (defaults to `2025-01`).
+
 ### Optional: LAN access (for the Android app)
 
 By default the server only listens on loopback, so nothing outside this machine can

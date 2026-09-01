@@ -1,5 +1,6 @@
 package com.empire.dashboard.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -158,6 +159,17 @@ fun DashboardScreen(status: EmpireStatus, onStartPipeline: () -> Unit = {}, onNa
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                    bundle.shopifyProductUrl?.let { url ->
+                        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "↗ View draft Shopify listing",
+                            color = EmpireGold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable { uriHandler.openUri(url) }
+                        )
+                    }
                 }
             }
         }
