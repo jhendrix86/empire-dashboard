@@ -170,6 +170,17 @@ fun DashboardScreen(status: EmpireStatus, onStartPipeline: () -> Unit = {}, onNa
                             modifier = Modifier.clickable { uriHandler.openUri(url) }
                         )
                     }
+                    bundle.etsyListingUrl?.let { url ->
+                        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "↗ View draft Etsy listing",
+                            color = EmpireGold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.clickable { uriHandler.openUri(url) }
+                        )
+                    }
                 }
             }
         }

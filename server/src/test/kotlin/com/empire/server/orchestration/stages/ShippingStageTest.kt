@@ -7,9 +7,11 @@ import com.empire.server.orchestration.artifacts.DeliverableFile
 import com.empire.server.orchestration.artifacts.DeliverableManifest
 import com.empire.server.orchestration.artifacts.EnterpriseBlueprint
 import com.empire.server.orchestration.artifacts.ResearchBrief
+import com.empire.server.etsy.EtsyListing
 import com.empire.server.orchestration.writeArtifact
 import com.empire.server.shopify.ShopifyProduct
 import com.empire.server.storage.RunRepository
+import com.empire.server.testutil.FakeEtsyClient
 import com.empire.server.testutil.FakeLlmClient
 import com.empire.server.testutil.FakeShopifyClient
 import java.io.File
@@ -65,7 +67,8 @@ class ShippingStageTest {
         File(deliverablesDir, "lead-magnet.md").writeText("the lead magnet")
 
         val shopify = FakeShopifyClient()
-        val result = ShippingStage(FakeLlmClient { _, _ -> "launch instructions" }, repo, shopify)
+        val etsy = FakeEtsyClient()
+        val result = ShippingStage(FakeLlmClient { _, _ -> "launch instructions" }, repo, shopify, etsy)
             .run(runId, repo.load(runId)!!)
 
         assertIs<StageOutcome.Continue>(result.outcome)
@@ -77,6 +80,7 @@ class ShippingStageTest {
             bundle?.copiedFiles?.toSet()
         )
         assertEquals(null, bundle?.shopifyProductUrl)
+        assertEquals(null, bundle?.etsyListingUrl)
 
         val instructionsFile = File(repo.runDir(runId), "bundle/instructions.md")
         assertTrue(instructionsFile.exists())
@@ -125,7 +129,8 @@ class ShippingStageTest {
         File(deliverablesDir, "lead-magnet.md").writeText("the lead magnet")
 
         val shopify = FakeShopifyClient(ShopifyProduct(id = 42, adminUrl = "https://store.myshopify.com/admin/products/42"))
-        val result = ShippingStage(FakeLlmClient { _, _ -> "launch instructions" }, repo, shopify)
+        val etsy = FakeEtsyClient()
+        val result = ShippingStage(FakeLlmClient { _, _ -> "launch instructions" }, repo, shopify, etsy)
             .run(runId, repo.load(runId)!!)
 
         assertIs<StageOutcome.Continue>(result.outcome)
@@ -133,5 +138,58 @@ class ShippingStageTest {
         assertEquals(1, shopify.calls.size)
         assertEquals("Senior Dog Nutrition", shopify.calls.single().title)
         assertEquals(29.0, shopify.calls.single().priceUsd)
+    }
+
+    @Test
+    fun `creates a draft Etsy listing priced from the blueprint and saves its url`() = runBlocking {
+        val repo = newRepo()
+        val runId = "run-3"
+        repo.save(RunManifest(runId = runId, createdAt = "now"))
+
+        writeArtifact(
+            repo, runId, "research-brief.json", ResearchBrief.serializer(),
+            ResearchBrief(
+                niche = SelectedNiche(niche = "Pet care", subNiche = "Senior Dog Nutrition"),
+                audienceProfile = "profile",
+                coreProblemDetail = "problem",
+                competitiveLandscape = "landscape",
+                legalComplianceNotes = "notes",
+                monetizationAngle = "angle",
+                recommendedProductFormat = "ebook"
+            )
+        )
+        writeArtifact(
+            repo, runId, "blueprint.json", EnterpriseBlueprint.serializer(),
+            EnterpriseBlueprint(
+                productOutline = "outline",
+                brandVoiceGuide = "voice",
+                visualDirection = "visual",
+                pricing = "$29 one-time purchase",
+                leadMagnetConcept = "lead",
+                funnelDesign = "funnel",
+                outputFormats = listOf("ebook"),
+                platformTargets = listOf("etsy")
+            )
+        )
+        val deliverableManifest = DeliverableManifest(
+            files = listOf(DeliverableFile(format = "ebook", fileName = "product-ebook.md", description = "main")),
+            leadMagnetFileName = "lead-magnet.md"
+        )
+        writeArtifact(repo, runId, "deliverable-manifest.json", DeliverableManifest.serializer(), deliverableManifest)
+
+        val deliverablesDir = File(repo.runDir(runId), "deliverables").apply { mkdirs() }
+        File(deliverablesDir, "product-ebook.md").writeText("the ebook")
+        File(deliverablesDir, "lead-magnet.md").writeText("the lead magnet")
+
+        val shopify = FakeShopifyClient()
+        val etsy = FakeEtsyClient(EtsyListing(listingId = 987, url = "https://www.etsy.com/listing/987"))
+        val result = ShippingStage(FakeLlmClient { _, _ -> "launch instructions" }, repo, shopify, etsy)
+            .run(runId, repo.load(runId)!!)
+
+        assertIs<StageOutcome.Continue>(result.outcome)
+        assertEquals("https://www.etsy.com/listing/987", repo.load(runId)?.bundle?.etsyListingUrl)
+        assertEquals(1, etsy.calls.size)
+        assertEquals("Senior Dog Nutrition", etsy.calls.single().title)
+        assertEquals(29.0, etsy.calls.single().priceUsd)
     }
 }

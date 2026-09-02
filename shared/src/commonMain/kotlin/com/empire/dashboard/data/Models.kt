@@ -27,7 +27,10 @@ data class BundleInfo(
     val copiedFiles: List<String> = emptyList(),
     // Admin link to the DRAFT Shopify listing created from this bundle, when Shopify is
     // configured; null if Shopify is unconfigured or listing creation failed.
-    val shopifyProductUrl: String? = null
+    val shopifyProductUrl: String? = null,
+    // Link to the DRAFT Etsy listing created from this bundle, when Etsy is configured;
+    // null if Etsy is unconfigured or listing creation failed.
+    val etsyListingUrl: String? = null
 )
 
 @Serializable

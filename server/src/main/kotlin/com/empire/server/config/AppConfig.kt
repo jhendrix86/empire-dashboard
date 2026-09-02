@@ -45,6 +45,21 @@ object AppConfig {
     val shopifyAccessToken: String? by lazy { env("SHOPIFY_ACCESS_TOKEN")?.trim()?.takeIf { it.isNotEmpty() } }
     val shopifyApiVersion: String by lazy { env("SHOPIFY_API_VERSION") ?: "2025-01" }
 
+    /** Etsy Open API v3 app credentials for creating draft listings; unset skips Etsy entirely. */
+    val etsyApiKey: String? by lazy { env("ETSY_API_KEY")?.trim()?.takeIf { it.isNotEmpty() } }
+    val etsyShopId: String? by lazy { env("ETSY_SHOP_ID")?.trim()?.takeIf { it.isNotEmpty() } }
+
+    /** One-time bootstrap refresh token from the manual OAuth consent step (see README).
+     *  Only used to seed the persisted token store the first time the server needs one --
+     *  afterward the server rotates its own refresh token on disk and this value is ignored. */
+    val etsyInitialRefreshToken: String? by lazy { env("ETSY_REFRESH_TOKEN")?.trim()?.takeIf { it.isNotEmpty() } }
+
+    /** Etsy taxonomy (category) ID to file draft listings under. No safe default exists --
+     *  Etsy's category IDs are opaque and change over time, so guessing one wrong would
+     *  silently misfile every listing. Required (see README for how to look yours up); Etsy
+     *  is skipped entirely when unset, same as a missing API key or shop ID. */
+    val etsyTaxonomyId: Long? by lazy { env("ETSY_TAXONOMY_ID")?.trim()?.toLongOrNull() }
+
     fun env(key: String): String? = System.getenv(key) ?: dotEnv[key]
 
     private val dotEnv: Map<String, String> by lazy {

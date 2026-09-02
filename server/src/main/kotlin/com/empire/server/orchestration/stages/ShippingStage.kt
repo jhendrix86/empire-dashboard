@@ -8,6 +8,8 @@ import com.empire.server.orchestration.StageResult
 import com.empire.server.orchestration.artifacts.DeliverableManifest
 import com.empire.server.orchestration.artifacts.EnterpriseBlueprint
 import com.empire.server.orchestration.artifacts.ResearchBrief
+import com.empire.server.etsy.EtsyApiClient
+import com.empire.server.etsy.EtsyClient
 import com.empire.server.orchestration.readArtifact
 import com.empire.server.packaging.BundlePackager
 import com.empire.server.shopify.ShopifyAdminClient
@@ -18,7 +20,8 @@ import java.io.File
 class ShippingStage(
     private val llm: LlmClient,
     private val runRepository: RunRepository,
-    private val shopifyClient: ShopifyClient = ShopifyAdminClient()
+    private val shopifyClient: ShopifyClient = ShopifyAdminClient(),
+    private val etsyClient: EtsyClient = EtsyApiClient()
 ) {
     suspend fun run(runId: String, manifest: RunManifest): StageResult {
         val brief = readArtifact(runRepository, runId, "research-brief.json", ResearchBrief.serializer())
@@ -59,16 +62,30 @@ class ShippingStage(
             sourceFiles = sourceFiles
         )
 
+        val priceUsd = parsePriceUsd(blueprint.pricing)
+
         val shopifyProductUrl = shopifyClient.createDraftProduct(
             title = productName,
             bodyHtml = blueprint.productOutline,
-            priceUsd = parsePriceUsd(blueprint.pricing)
+            priceUsd = priceUsd
         )?.adminUrl
 
-        runRepository.update(runId) { it.copy(bundle = bundleInfo.copy(shopifyProductUrl = shopifyProductUrl)) }
+        val etsyListingUrl = etsyClient.createDraftListing(
+            title = productName,
+            description = blueprint.productOutline,
+            priceUsd = priceUsd
+        )?.url
 
-        val shopifyDetail = if (shopifyProductUrl != null) ", Shopify draft listing created" else ""
-        return StageResult(StageOutcome.Continue, detail = "${bundleInfo.copiedFiles.size} files bundled$shopifyDetail")
+        runRepository.update(runId) {
+            it.copy(bundle = bundleInfo.copy(shopifyProductUrl = shopifyProductUrl, etsyListingUrl = etsyListingUrl))
+        }
+
+        val listingNotes = listOfNotNull(
+            "Shopify draft listing created".takeIf { shopifyProductUrl != null },
+            "Etsy draft listing created".takeIf { etsyListingUrl != null }
+        )
+        val listingDetail = if (listingNotes.isEmpty()) "" else ", " + listingNotes.joinToString(", ")
+        return StageResult(StageOutcome.Continue, detail = "${bundleInfo.copiedFiles.size} files bundled$listingDetail")
     }
 
     private fun parsePriceUsd(pricing: String): Double? =
