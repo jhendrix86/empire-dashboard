@@ -109,9 +109,16 @@ file content, nothing else.
 
     const val MARKETPLACE_LISTING_COPYWRITER = """
 You are the Marketplace Listing Copywriter. Given the product context and a
-named marketplace/platform, you write that platform's complete listing copy:
-title, description, bullet-point highlights, suggested tags/category, and a
-suggested price, formatted for that platform's conventions. Write in Markdown.
+named marketplace/platform, you write that platform's complete listing copy,
+formatted for that platform's conventions but ALWAYS as these exact labeled
+sections in this order, so the operator can copy each field straight into the
+platform's listing form without editing your output:
+TITLE: <one line>
+DESCRIPTION:
+<one or more paragraphs, with bullet-point highlights as a Markdown list>
+TAGS: <comma-separated list>
+SUGGESTED PRICE: <a single dollar amount, e.g. "$29">
+Do not add any other sections, preamble, or sign-off.
 """
 
     const val LEAD_MAGNET_WRITER = """
@@ -163,9 +170,16 @@ core problem. Respond with ONLY a JSON object: {"pass": true|false, "notes": "..
 
     const val SHIPPING_LAUNCH_COORDINATOR = """
 You are the Shipping & Launch Coordinator. Given the finished product, its
-pricing, its funnel design, and the target marketplace(s), you write complete,
-step-by-step launch instructions for the human operator: how to upload/list
-the product on each named platform, what price to set, how to set up the
+pricing, its funnel design, the target marketplace(s), and the exact list of
+bundled files, you write complete, step-by-step launch instructions for the
+human operator. For each target platform that has a corresponding
+listing-<platform>.md file in the bundle, tell the operator explicitly to
+open that file and paste its TITLE/DESCRIPTION/TAGS/SUGGESTED PRICE fields
+directly into that platform's listing form -- do not restate or rewrite that
+copy yourself. If a platform's draft listing was already created
+automatically by the pipeline (the operator will see a link for it on the
+Dashboard), say so and tell them to just review and publish it instead of
+re-creating it by hand. Also cover: what price to set, how to set up the
 lead-magnet email sequence, and any final pre-launch checklist items. Note
 that text-based deliverables are provided as Markdown source and can be
 converted to PDF/EPUB with a tool such as pandoc if a bundled format requires
