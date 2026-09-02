@@ -94,6 +94,41 @@ text. A link to the draft appears on the Dashboard's Product Bundle card once cr
 Unset (the default) skips Shopify entirely -- no calls, no listing. Override the API
 version with `SHOPIFY_API_VERSION` (defaults to `2025-01`).
 
+### Optional: create a draft Etsy listing for each product
+
+Point the server at an Etsy shop to have the Shipping stage create a draft listing
+there too, the same way it does for Shopify above -- created via Etsy's own
+`createDraftListing` endpoint, so it's a draft by definition and never active/live
+until you publish it yourself.
+
+Etsy's API is OAuth2-only and access tokens expire after about an hour, so setup is
+a one-time manual step instead of just pasting in a static key:
+
+1. Create an app under [your Etsy developer account](https://www.etsy.com/developers) to
+   get an API key (keystring).
+2. Complete Etsy's OAuth2 authorization-code flow once in a browser (see
+   [Etsy's authentication docs](https://developers.etsy.com/documentation/essentials/authentication))
+   to get an initial refresh token. This is the only manual step -- the server takes it
+   from there.
+3. Look up the numeric shop ID for your Etsy shop, and the taxonomy (category) ID you
+   want listings filed under (Etsy's `getSellerTaxonomyNodes` endpoint, or note it while
+   starting a listing by hand in the Etsy UI). There's no safe default for this since
+   Etsy's category IDs are opaque and would silently misfile every listing if guessed
+   wrong -- Etsy is skipped entirely if it's not set.
+
+```powershell
+$env:ETSY_API_KEY = "..."
+$env:ETSY_SHOP_ID = "12345678"
+$env:ETSY_TAXONOMY_ID = "..."
+$env:ETSY_REFRESH_TOKEN = "..."   # only needed once, to bootstrap
+```
+
+After the first successful call, the server persists its own access/refresh token pair
+to disk (`server/data/etsy-tokens.json` by default) and rotates it automatically as
+Etsy requires -- `ETSY_REFRESH_TOKEN` is only ever read again if that file is missing.
+Unset `ETSY_API_KEY`/`ETSY_SHOP_ID`/`ETSY_TAXONOMY_ID` (the default) skips Etsy entirely.
+A link to the draft appears on the Dashboard's Product Bundle card once created.
+
 ### Optional: LAN access (for the Android app)
 
 By default the server only listens on loopback, so nothing outside this machine can
